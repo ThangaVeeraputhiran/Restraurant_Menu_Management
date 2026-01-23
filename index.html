@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Restaurant - IoT Kitchen Display System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🍽️ Smart Restaurant</h1>
+            <p class="subtitle">IoT-Powered Ordering System</p>
+        </header>
+
+        <!-- ESP32 Configuration Panel -->
+        <div class="config-panel">
+            <h3>⚙️ Kitchen Display Settings</h3>
+            <div class="config-row">
+                <label for="esp32-ip">ESP32 IP Address:</label>
+                <input type="text" id="esp32-ip" placeholder="192.168.1.100" value="192.168.1.100">
+            </div>
+            <div class="config-row">
+                <label for="table-number">Table Number:</label>
+                <input type="number" id="table-number" min="1" max="50" value="1">
+            </div>
+            <button class="btn-test" onclick="testConnection()">Test Connection</button>
+            <span id="connection-status"></span>
+        </div>
+
+        <!-- Menu Section -->
+        <div class="menu-container">
+            <h2>📋 Menu</h2>
+
+            <!-- Beverages -->
+            <div class="category">
+                <h3 class="category-title">☕ Beverages</h3>
+                <div class="menu-grid">
+                    <div class="menu-item" data-name="Tea" data-price="10">
+                        <div class="item-info">
+                            <span class="item-name">Tea</span>
+                            <span class="item-price">₹10</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Tea', -1)">−</button>
+                            <span class="quantity" id="qty-Tea">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Tea', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Coffee" data-price="15">
+                        <div class="item-info">
+                            <span class="item-name">Coffee</span>
+                            <span class="item-price">₹15</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Coffee', -1)">−</button>
+                            <span class="quantity" id="qty-Coffee">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Coffee', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Horlicks" data-price="20">
+                        <div class="item-info">
+                            <span class="item-name">Horlicks</span>
+                            <span class="item-price">₹20</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Horlicks', -1)">−</button>
+                            <span class="quantity" id="qty-Horlicks">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Horlicks', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Boost" data-price="20">
+                        <div class="item-info">
+                            <span class="item-name">Boost</span>
+                            <span class="item-price">₹20</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Boost', -1)">−</button>
+                            <span class="quantity" id="qty-Boost">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Boost', 1)">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Snacks -->
+            <div class="category">
+                <h3 class="category-title">🍪 Snacks</h3>
+                <div class="menu-grid">
+                    <div class="menu-item" data-name="Vada" data-price="10">
+                        <div class="item-info">
+                            <span class="item-name">Vada</span>
+                            <span class="item-price">₹10</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Vada', -1)">−</button>
+                            <span class="quantity" id="qty-Vada">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Vada', 1)">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tiffin / Meals -->
+            <div class="category">
+                <h3 class="category-title">🍛 Tiffin / Meals</h3>
+                <div class="menu-grid">
+                    <div class="menu-item" data-name="Idly (Plate)" data-price="40">
+                        <div class="item-info">
+                            <span class="item-name">Idly (Plate)</span>
+                            <span class="item-price">₹40</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Idly (Plate)', -1)">−</button>
+                            <span class="quantity" id="qty-Idly (Plate)">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Idly (Plate)', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Poori (Plate)" data-price="40">
+                        <div class="item-info">
+                            <span class="item-name">Poori (Plate)</span>
+                            <span class="item-price">₹40</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Poori (Plate)', -1)">−</button>
+                            <span class="quantity" id="qty-Poori (Plate)">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Poori (Plate)', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Dosa" data-price="40">
+                        <div class="item-info">
+                            <span class="item-name">Dosa</span>
+                            <span class="item-price">₹40</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Dosa', -1)">−</button>
+                            <span class="quantity" id="qty-Dosa">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Dosa', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Masal Dosa" data-price="50">
+                        <div class="item-info">
+                            <span class="item-name">Masal Dosa</span>
+                            <span class="item-price">₹50</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Masal Dosa', -1)">−</button>
+                            <span class="quantity" id="qty-Masal Dosa">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Masal Dosa', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Paper Roast" data-price="55">
+                        <div class="item-info">
+                            <span class="item-name">Paper Roast</span>
+                            <span class="item-price">₹55</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Paper Roast', -1)">−</button>
+                            <span class="quantity" id="qty-Paper Roast">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Paper Roast', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Ghee Roast" data-price="60">
+                        <div class="item-info">
+                            <span class="item-name">Ghee Roast</span>
+                            <span class="item-price">₹60</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Ghee Roast', -1)">−</button>
+                            <span class="quantity" id="qty-Ghee Roast">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Ghee Roast', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Onion Dosa" data-price="50">
+                        <div class="item-info">
+                            <span class="item-name">Onion Dosa</span>
+                            <span class="item-price">₹50</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Onion Dosa', -1)">−</button>
+                            <span class="quantity" id="qty-Onion Dosa">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Onion Dosa', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Uthappam" data-price="40">
+                        <div class="item-info">
+                            <span class="item-name">Uthappam</span>
+                            <span class="item-price">₹40</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Uthappam', -1)">−</button>
+                            <span class="quantity" id="qty-Uthappam">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Uthappam', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Onion Uthappam" data-price="50">
+                        <div class="item-info">
+                            <span class="item-name">Onion Uthappam</span>
+                            <span class="item-price">₹50</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Onion Uthappam', -1)">−</button>
+                            <span class="quantity" id="qty-Onion Uthappam">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Onion Uthappam', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Chapathi" data-price="30">
+                        <div class="item-info">
+                            <span class="item-name">Chapathi</span>
+                            <span class="item-price">₹30</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Chapathi', -1)">−</button>
+                            <span class="quantity" id="qty-Chapathi">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Chapathi', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Porota (Plate)" data-price="40">
+                        <div class="item-info">
+                            <span class="item-name">Porota (Plate)</span>
+                            <span class="item-price">₹40</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Porota (Plate)', -1)">−</button>
+                            <span class="quantity" id="qty-Porota (Plate)">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Porota (Plate)', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-name="Meals" data-price="70">
+                        <div class="item-info">
+                            <span class="item-name">Meals</span>
+                            <span class="item-price">₹70</span>
+                        </div>
+                        <div class="item-controls">
+                            <button class="btn-minus" onclick="updateQuantity('Meals', -1)">−</button>
+                            <span class="quantity" id="qty-Meals">0</span>
+                            <button class="btn-plus" onclick="updateQuantity('Meals', 1)">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sticky Cart Bar -->
+        <div class="cart-bar" id="cart-bar">
+            <div class="cart-summary">
+                <span class="cart-count">🛒 <span id="total-items">0</span> Items</span>
+                <span class="cart-total">Total: ₹<span id="total-amount">0</span></span>
+            </div>
+            <button class="btn-checkout" onclick="openCheckout()">View Cart</button>
+        </div>
+
+        <!-- Checkout Modal -->
+        <div class="modal" id="checkout-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>🛒 Your Order</h2>
+                    <button class="btn-close" onclick="closeCheckout()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div id="cart-items"></div>
+                    <div class="order-summary">
+                        <div class="summary-row">
+                            <span>Total Items:</span>
+                            <span id="checkout-total-items">0</span>
+                        </div>
+                        <div class="summary-row grand-total">
+                            <span>Grand Total:</span>
+                            <span>₹<span id="checkout-total-amount">0</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeCheckout()">Continue Shopping</button>
+                    <button class="btn-primary" onclick="confirmOrder()">📤 Send to Kitchen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Confirmation Modal -->
+        <div class="modal" id="confirmation-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>✅ Order Sent!</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="success-message">
+                        <p>Your order has been successfully sent to the kitchen display!</p>
+                        <p class="order-details" id="order-confirmation-details"></p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-primary" onclick="closeConfirmation()">New Order</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

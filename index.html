@@ -25,9 +25,16 @@
                 <label for="table-number">Table Number:</label>
                 <input type="number" id="table-number" min="1" max="50" value="1">
             </div>
-            <button class="btn-test" onclick="testConnection()">Test Connection</button>
-            <span id="connection-status"></span>
+            <div class="config-actions">
+                <button class="btn-test" onclick="testConnection()">Test Connection</button>
+                <button class="btn-inventory" onclick="openInventoryDashboard()">📦 Manage Inventory</button>
+                <button class="btn-analytics" onclick="openAnalyticsDashboard()">📊 Analytics & Reports</button>
+                <span id="connection-status"></span>
+            </div>
         </div>
+
+        <!-- Restock Alert (will be dynamically inserted) -->
+        <div id="restock-alert" class="restock-alert" style="display: none;"></div>
 
         <!-- Menu Section -->
         <div class="menu-container">
@@ -309,8 +316,1183 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <script src="script.js"></script>
+        <!-- Inventory Management Dashboard Modal -->
+        <div class="modal" id="inventory-modal">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>📦 Inventory Management</h2>
+                    <button class="btn-close" onclick="closeInventoryDashboard()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Inventory Statistics -->
+                    <div class="inventory-stats">
+                        <div class="stat-card">
+                            <div class="stat-value" id="stat-total-items">0</div>
+                            <div class="stat-label">Total Items</div>
+                        </div>
+                        <div class="stat-card stat-ok">
+                            <div class="stat-value" id="stat-ok-stock">0</div>
+                            <div class="stat-label">In Stock</div>
+                        </div>
+                        <div class="stat-card stat-low">
+                            <div class="stat-value" id="stat-low-stock">0</div>
+                            <div class="stat-label">Low Stock</div>
+                        </div>
+                        <div class="stat-card stat-critical">
+                            <div class="stat-value" id="stat-critical-stock">0</div>
+                            <div class="stat-label">Critical/Out</div>
+                        </div>
+                    </div>
+
+                    <!-- Inventory List -->
+                    <div class="inventory-list" id="inventory-list">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="exportInventory()">📥 Export Data</button>
+                    <button class="btn-success" onclick="openAddNewItem()">➕ Add New Item</button>
+                    <button class="btn-warning" onclick="resetInventory()">🔄 Reset All</button>
+                    <button class="btn-primary" onclick="closeInventoryDashboard()">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Adjustment Modal -->
+        <div class="modal" id="adjust-modal">
+            <div class="modal-content modal-small">
+                <div class="modal-header">
+                    <h2>Adjust Stock</h2>
+                    <button class="btn-close" onclick="closeStockAdjust()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <h3 id="adjust-item-name" class="adjust-item-title"></h3>
+                    <p id="adjust-current-stock" class="adjust-current"></p>
+                    
+                    <div class="adjust-form">
+                        <div class="adjust-radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="adjust-action" value="add" checked>
+                                Add to Stock
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="adjust-action" value="remove">
+                                Remove from Stock
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="adjust-action" value="set">
+                                Set Exact Amount
+                            </label>
+                        </div>
+                        
+                        <div class="adjust-input-group">
+                            <label for="adjust-quantity">Quantity:</label>
+                            <input type="number" id="adjust-quantity" min="1" placeholder="Enter quantity">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeStockAdjust()">Cancel</button>
+                    <button class="btn-primary" onclick="applyStockAdjustment()">Apply</button>
+                </div>
+            </div>
+
+        <!-- Add New Item Modal -->
+        <div class="modal" id="add-item-modal">
+            <div class="modal-content modal-medium">
+                <div class="modal-header">
+                    <h2>➕ Add New Menu Item</h2>
+                    <button class="btn-close" onclick="closeAddNewItem()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <form id="new-item-form" class="add-item-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new-item-name">Item Name *</label>
+                                <input type="text" id="new-item-name" placeholder="e.g., Samosa" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="new-item-price">Price (₹) *</label>
+                                <input type="number" id="new-item-price" min="1" step="0.01" placeholder="e.g., 20" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new-item-category">Category *</label>
+                                <select id="new-item-category" required>
+                                    <option value="Beverages">☕ Beverages</option>
+                                    <option value="Snacks">🍪 Snacks</option>
+                                    <option value="Tiffin/Meals">🍛 Tiffin/Meals</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="new-item-unit">Unit *</label>
+                                <input type="text" id="new-item-unit" placeholder="e.g., pieces, cups, plates" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new-item-stock">Initial Stock *</label>
+                                <input type="number" id="new-item-stock" min="0" placeholder="e.g., 50" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="new-item-low-threshold">Low Stock Alert *</label>
+                                <input type="number" id="new-item-low-threshold" min="1" placeholder="e.g., 15" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="new-item-critical-threshold">Critical Stock Alert *</label>
+                                <input type="number" id="new-item-critical-threshold" min="1" placeholder="e.g., 5" required>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="closeAddNewItem()">Cancel</button>
+                    <button class="btn-primary" onclick="addNewMenuItem()">Add Item</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Dashboard Modal -->
+        <div class="modal" id="analytics-modal">
+            <div class="modal-content modal-xlarge">
+                <div class="modal-header">
+                    <h2>📊 Analytics & Billing Reports</h2>
+                    <button class="btn-close" onclick="closeAnalyticsDashboard()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Filter Section -->
+                    <div class="analytics-filters">
+                        <h3>Period: <span id="analytics-period-label">Today</span></h3>
+                        <div class="filter-buttons">
+                            <button class="analytics-filter-btn active" data-period="today" onclick="updateAnalyticsDashboard('today'); this.parentElement.querySelectorAll('.analytics-filter-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">Today</button>
+                            <button class="analytics-filter-btn" data-period="month" onclick="updateAnalyticsDashboard('month'); this.parentElement.querySelectorAll('.analytics-filter-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">This Month</button>
+                            <button class="analytics-filter-btn" data-period="year" onclick="updateAnalyticsDashboard('year'); this.parentElement.querySelectorAll('.analytics-filter-btn').forEach(b => b.classList.remove('active')); this.classList.add('active');">This Year</button>
+                        </div>
+                        <div class="custom-date-filter">
+                            <input type="date" id="analytics-start-date">
+                            <span>to</span>
+                            <input type="date" id="analytics-end-date">
+                            <button class="btn-apply-filter" onclick="updateAnalyticsDashboard('custom')">Apply</button>
+                        </div>
+                    </div>
+
+                    <!-- Summary Statistics -->
+                    <div class="analytics-summary">
+                        <div class="summary-card">
+                            <div class="summary-icon">📦</div>
+                            <div class="summary-info">
+                                <div class="summary-value" id="stat-total-orders">0</div>
+                                <div class="summary-label">Total Orders</div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-icon">💰</div>
+                            <div class="summary-info">
+                                <div class="summary-value" id="stat-total-revenue">₹0</div>
+                                <div class="summary-label">Total Revenue</div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-icon">📊</div>
+                            <div class="summary-info">
+                                <div class="summary-value" id="stat-avg-order">₹0</div>
+                                <div class="summary-label">Avg Order Value</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hourly Traffic Analysis -->
+                    <div class="analytics-section">
+                        <h3>⏰ Hourly Traffic Analysis</h3>
+                        <p id="peak-hour-info" class="peak-info"></p>
+                        <div class="hourly-traffic-chart" id="hourly-traffic-chart">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <!-- Top Selling Items -->
+                    <div class="analytics-section">
+                        <h3>🏆 Top Selling Items</h3>
+                        <div class="top-items-list" id="top-items-list">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <!-- Order History -->
+                    <div class="analytics-section">
+                        <h3>📋 Order History</h3>
+                        <div class="order-list" id="order-list">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-danger" onclick="clearOrderHistory()">🗑️ Clear History</button>
+                    <button class="btn-secondary" onclick="exportAnalyticsReport()">📥 Export Report</button>
+                    <button class="btn-primary" onclick="closeAnalyticsDashboard()">Close</button>
+                </div>
+            </div>
+        </div>
+
+    <script>
+        // ===================================
+        // COMPLETE RESTAURANT MANAGEMENT SYSTEM
+        // ===================================
+        console.log('🍽️ Kitchen Alert System Loading...');
+        
+        const menuItems = {
+            "Tea": 10,
+            "Coffee": 15,
+            "Horlicks": 20,
+            "Boost": 20,
+            "Vada": 10,
+            "Idly (Plate)": 40,
+            "Poori (Plate)": 40,
+            "Dosa": 40,
+            "Masal Dosa": 50,
+            "Paper Roast": 55,
+            "Ghee Roast": 60,
+            "Onion Dosa": 50,
+            "Uthappam": 40,
+            "Onion Uthappam": 50,
+            "Chapathi": 30,
+            "Porota (Plate)": 40,
+            "Meals": 70
+        };
+
+        let cart = {};
+        let inventory = {};
+
+        const defaultInventory = {
+            "Tea": { currentStock: 100, unit: "cups", lowThreshold: 20, criticalThreshold: 5, category: "Beverages" },
+            "Coffee": { currentStock: 100, unit: "cups", lowThreshold: 20, criticalThreshold: 5, category: "Beverages" },
+            "Horlicks": { currentStock: 50, unit: "cups", lowThreshold: 15, criticalThreshold: 5, category: "Beverages" },
+            "Boost": { currentStock: 50, unit: "cups", lowThreshold: 15, criticalThreshold: 5, category: "Beverages" },
+            "Vada": { currentStock: 80, unit: "pieces", lowThreshold: 15, criticalThreshold: 5, category: "Snacks" },
+            "Idly (Plate)": { currentStock: 50, unit: "plates", lowThreshold: 10, criticalThreshold: 3, category: "Tiffin/Meals" },
+            "Poori (Plate)": { currentStock: 40, unit: "plates", lowThreshold: 10, criticalThreshold: 3, category: "Tiffin/Meals" },
+            "Dosa": { currentStock: 60, unit: "pieces", lowThreshold: 15, criticalThreshold: 5, category: "Tiffin/Meals" },
+            "Masal Dosa": { currentStock: 50, unit: "pieces", lowThreshold: 12, criticalThreshold: 4, category: "Tiffin/Meals" },
+            "Paper Roast": { currentStock: 40, unit: "pieces", lowThreshold: 10, criticalThreshold: 3, category: "Tiffin/Meals" },
+            "Ghee Roast": { currentStock: 40, unit: "pieces", lowThreshold: 10, criticalThreshold: 3, category: "Tiffin/Meals" },
+            "Onion Dosa": { currentStock: 45, unit: "pieces", lowThreshold: 12, criticalThreshold: 4, category: "Tiffin/Meals" },
+            "Uthappam": { currentStock: 35, unit: "pieces", lowThreshold: 10, criticalThreshold: 3, category: "Tiffin/Meals" },
+            "Onion Uthappam": { currentStock: 35, unit: "pieces", lowThreshold: 10, criticalThreshold: 3, category: "Tiffin/Meals" },
+            "Chapathi": { currentStock: 50, unit: "pieces", lowThreshold: 15, criticalThreshold: 5, category: "Tiffin/Meals" },
+            "Porota (Plate)": { currentStock: 40, unit: "plates", lowThreshold: 10, criticalThreshold: 3, category: "Tiffin/Meals" },
+            "Meals": { currentStock: 30, unit: "plates", lowThreshold: 8, criticalThreshold: 2, category: "Tiffin/Meals" }
+        };
+
+        // ===================================
+        // INVENTORY FUNCTIONS
+        // ===================================
+        function initializeInventory() {
+            const saved = localStorage.getItem('restaurantInventory');
+            if (saved) {
+                inventory = JSON.parse(saved);
+                for (const itemName in defaultInventory) {
+                    if (!inventory[itemName]) {
+                        inventory[itemName] = { ...defaultInventory[itemName], lastRestocked: new Date().toISOString() };
+                    }
+                }
+            } else {
+                for (const itemName in defaultInventory) {
+                    inventory[itemName] = { ...defaultInventory[itemName], lastRestocked: new Date().toISOString() };
+                }
+            }
+            saveInventory();
+        }
+
+        function saveInventory() {
+            localStorage.setItem('restaurantInventory', JSON.stringify(inventory));
+        }
+
+        function getStockStatus(itemName) {
+            const item = inventory[itemName];
+            if (!item) return 'ok';
+            if (item.currentStock <= 0) return 'out';
+            if (item.currentStock <= item.criticalThreshold) return 'critical';
+            if (item.currentStock <= item.lowThreshold) return 'low';
+            return 'ok';
+        }
+
+        function deductStock(cart) {
+            for (const itemName in cart) {
+                if (inventory[itemName]) {
+                    inventory[itemName].currentStock -= cart[itemName].quantity;
+                    if (inventory[itemName].currentStock < 0) inventory[itemName].currentStock = 0;
+                }
+            }
+            saveInventory();
+            updateStockDisplay();
+        }
+
+        function addStock(itemName, quantity) {
+            if (inventory[itemName]) {
+                inventory[itemName].currentStock += quantity;
+                inventory[itemName].lastRestocked = new Date().toISOString();
+                saveInventory();
+                updateStockDisplay();
+                updateInventoryDashboard();
+            }
+        }
+
+        function setStock(itemName, quantity) {
+            if (inventory[itemName]) {
+                inventory[itemName].currentStock = quantity;
+                inventory[itemName].lastRestocked = new Date().toISOString();
+                saveInventory();
+                updateStockDisplay();
+                updateInventoryDashboard();
+            }
+        }
+
+        // ===================================
+        // CART FUNCTIONS
+        // ===================================
+        function updateQuantity(itemName, change) {
+            if (!cart[itemName]) {
+                cart[itemName] = { quantity: 0, price: menuItems[itemName] };
+            }
+            
+            const newQuantity = cart[itemName].quantity + change;
+            
+            if (change > 0 && inventory[itemName] && inventory[itemName].currentStock < newQuantity) {
+                alert(`Sorry! Only ${inventory[itemName].currentStock} ${inventory[itemName].unit} available.`);
+                return;
+            }
+            
+            cart[itemName].quantity = newQuantity;
+            
+            if (cart[itemName].quantity <= 0) {
+                cart[itemName].quantity = 0;
+                delete cart[itemName];
+            }
+            
+            updateQuantityDisplay(itemName);
+            updateCartBar();
+        }
+
+        function updateQuantityDisplay(itemName) {
+            const qtyElement = document.getElementById(`qty-${itemName}`);
+            if (qtyElement) {
+                const quantity = cart[itemName] ? cart[itemName].quantity : 0;
+                qtyElement.textContent = quantity;
+            }
+        }
+
+        function updateCartBar() {
+            let totalItems = 0;
+            let totalAmount = 0;
+            
+            for (const itemName in cart) {
+                totalItems += cart[itemName].quantity;
+                totalAmount += cart[itemName].quantity * cart[itemName].price;
+            }
+            
+            document.getElementById('total-items').textContent = totalItems;
+            document.getElementById('total-amount').textContent = totalAmount;
+        }
+
+        function updateStockDisplay() {
+            for (const itemName in inventory) {
+                const menuItem = document.querySelector(`.menu-item[data-name="${itemName}"]`);
+                if (!menuItem) continue;
+                
+                const itemInfo = menuItem.querySelector('.item-info');
+                let stockDisplay = itemInfo.querySelector('.stock-display');
+                
+                if (!stockDisplay) {
+                    stockDisplay = document.createElement('div');
+                    stockDisplay.className = 'stock-display';
+                    stockDisplay.style.fontSize = '0.85rem';
+                    stockDisplay.style.color = '#6c757d';
+                    stockDisplay.style.marginTop = '4px';
+                    itemInfo.appendChild(stockDisplay);
+                }
+                
+                const stock = inventory[itemName].currentStock;
+                const status = getStockStatus(itemName);
+                
+                stockDisplay.textContent = `Stock: ${stock} ${inventory[itemName].unit}`;
+                
+                const plusBtn = menuItem.querySelector('.btn-plus');
+                if (stock <= 0) {
+                    stockDisplay.style.color = '#dc3545';
+                    stockDisplay.style.fontWeight = 'bold';
+                    if (plusBtn) plusBtn.disabled = true;
+                } else {
+                    if (plusBtn) plusBtn.disabled = false;
+                    if (status === 'critical') {
+                        stockDisplay.style.color = '#dc3545';
+                        stockDisplay.style.fontWeight = 'bold';
+                    } else if (status === 'low') {
+                        stockDisplay.style.color = '#ffc107';
+                        stockDisplay.style.fontWeight = '600';
+                    } else {
+                        stockDisplay.style.color = '#28a745';
+                    }
+                }
+            }
+        }
+
+        function clearCart() {
+            cart = {};
+            for (const itemName in menuItems) {
+                updateQuantityDisplay(itemName);
+            }
+            updateCartBar();
+        }
+
+        // ===================================
+        // CHECKOUT FUNCTIONS
+        // ===================================
+        function openCheckout() {
+            if (Object.keys(cart).length === 0) {
+                alert('Your cart is empty!');
+                return;
+            }
+            
+            const cartItemsContainer = document.getElementById('cart-items');
+            cartItemsContainer.innerHTML = '';
+            
+            let totalQuantity = 0;
+            let grandTotal = 0;
+            
+            for (const itemName in cart) {
+                const item = cart[itemName];
+                const itemTotal = item.quantity * item.price;
+                totalQuantity += item.quantity;
+                grandTotal += itemTotal;
+                
+                const cartItemElement = document.createElement('div');
+                cartItemElement.className = 'cart-item';
+                cartItemElement.innerHTML = `
+                    <div class="cart-item-info">
+                        <div class="cart-item-name">${itemName}</div>
+                        <div class="cart-item-details">${item.quantity} × ₹${item.price} = ₹${itemTotal}</div>
+                    </div>
+                    <div class="cart-item-total">₹${itemTotal}</div>
+                `;
+                cartItemsContainer.appendChild(cartItemElement);
+            }
+            
+            document.getElementById('checkout-total-items').textContent = totalQuantity;
+            document.getElementById('checkout-total-amount').textContent = grandTotal;
+            document.getElementById('checkout-modal').classList.add('active');
+        }
+
+        function closeCheckout() {
+            document.getElementById('checkout-modal').classList.remove('active');
+        }
+
+        async function confirmOrder() {
+            const esp32IP = document.getElementById('esp32-ip').value.trim();
+            const tableNumber = document.getElementById('table-number').value;
+            
+            if (!esp32IP) {
+                alert('Please enter ESP32 IP address!');
+                return;
+            }
+            
+            if (!tableNumber || tableNumber < 1) {
+                alert('Please enter a valid table number!');
+                return;
+            }
+            
+            const orderData = prepareOrderData(tableNumber);
+            closeCheckout();
+            
+            try {
+                await sendOrderToESP32(esp32IP, orderData);
+                processOrder(orderData);
+                showConfirmation(orderData);
+                clearCart();
+            } catch (error) {
+                console.error('Order error:', error);
+                alert('Note: Could not connect to ESP32, but order saved locally.');
+                processOrder(orderData);
+                showConfirmation(orderData);
+                clearCart();
+            }
+        }
+
+        function prepareOrderData(tableNumber) {
+            const items = [];
+            let total = 0;
+            
+            for (const itemName in cart) {
+                const item = cart[itemName];
+                items.push({ name: itemName, qty: item.quantity });
+                total += item.quantity * item.price;
+            }
+            
+            const now = new Date();
+            const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+            
+            return {
+                table: tableNumber.toString(),
+                items: items,
+                total: total,
+                time: time
+            };
+        }
+
+        async function sendOrderToESP32(esp32IP, orderData) {
+            const url = `http://${esp32IP}/order`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderData),
+                timeout: 5000
+            });
+            
+            if (!response.ok) throw new Error('ESP32 connection failed');
+            return await response.json();
+        }
+
+        function processOrder(orderData) {
+            deductStock(cart);
+            saveOrderToHistory(orderData);
+        }
+
+        function showConfirmation(orderData) {
+            const detailsElement = document.getElementById('order-confirmation-details');
+            let itemsList = '';
+            orderData.items.forEach(item => {
+                itemsList += `${item.name} × ${item.qty}\n`;
+            });
+            
+            detailsElement.textContent = `
+Table: ${orderData.table}
+Time: ${orderData.time}
+
+Items:
+${itemsList}
+Total: ₹${orderData.total}
+
+✓ Order sent to kitchen display!
+            `.trim();
+            
+            document.getElementById('confirmation-modal').classList.add('active');
+        }
+
+        function closeConfirmation() {
+            document.getElementById('confirmation-modal').classList.remove('active');
+        }
+
+        async function testConnection() {
+            const esp32IP = document.getElementById('esp32-ip').value.trim();
+            const statusElement = document.getElementById('connection-status');
+            
+            if (!esp32IP) {
+                statusElement.textContent = '❌ Please enter IP address';
+                statusElement.className = 'error';
+                return;
+            }
+            
+            statusElement.textContent = '🔄 Testing...';
+            statusElement.className = '';
+            
+            try {
+                const response = await fetch(`http://${esp32IP}/test`, { timeout: 5000 });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                statusElement.textContent = '✅ Connection successful!';
+                statusElement.className = 'success';
+                
+                setTimeout(() => {
+                    statusElement.textContent = '';
+                    statusElement.className = '';
+                }, 3000);
+            } catch (error) {
+                statusElement.textContent = `❌ Failed: ${error.message}`;
+                statusElement.className = 'error';
+            }
+        }
+
+        // ===================================
+        // ORDER HISTORY & ANALYTICS
+        // ===================================
+        function saveOrderToHistory(orderData) {
+            const orders = JSON.parse(localStorage.getItem('orderHistory') || '[]');
+            const order = {
+                id: Date.now(),
+                timestamp: new Date().toISOString(),
+                table: orderData.table,
+                items: orderData.items,
+                total: orderData.total,
+                time: orderData.time,
+                date: new Date().toLocaleDateString(),
+                hour: new Date().getHours()
+            };
+            orders.push(order);
+            localStorage.setItem('orderHistory', JSON.stringify(orders));
+        }
+
+        function getAllOrders() {
+            return JSON.parse(localStorage.getItem('orderHistory') || '[]');
+        }
+
+        function getOrdersByDateRange(startDate, endDate) {
+            const orders = getAllOrders();
+            return orders.filter(order => {
+                const orderDate = new Date(order.timestamp);
+                return orderDate >= startDate && orderDate <= endDate;
+            });
+        }
+
+        function getTodayOrders() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            return getOrdersByDateRange(today, tomorrow);
+        }
+
+        function getMonthOrders() {
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+            return getOrdersByDateRange(firstDay, lastDay);
+        }
+
+        function getYearOrders() {
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), 0, 1);
+            const lastDay = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+            return getOrdersByDateRange(firstDay, lastDay);
+        }
+
+        function calculateRevenue(orders) {
+            return orders.reduce((sum, order) => sum + order.total, 0);
+        }
+
+        function getHourlyTraffic(orders) {
+            const hourlyData = {};
+            for (let i = 0; i < 24; i++) {
+                hourlyData[i] = { count: 0, revenue: 0 };
+            }
+            orders.forEach(order => {
+                const hour = order.hour;
+                hourlyData[hour].count++;
+                hourlyData[hour].revenue += order.total;
+            });
+            return hourlyData;
+        }
+
+        function getTopSellingItems(orders) {
+            const itemCounts = {};
+            orders.forEach(order => {
+                order.items.forEach(item => {
+                    if (!itemCounts[item.name]) {
+                        itemCounts[item.name] = { count: 0, revenue: 0 };
+                    }
+                    itemCounts[item.name].count += item.qty;
+                    itemCounts[item.name].revenue += item.qty * (menuItems[item.name] || 0);
+                });
+            });
+            
+            const items = Object.keys(itemCounts).map(name => ({
+                name: name,
+                count: itemCounts[name].count,
+                revenue: itemCounts[name].revenue
+            }));
+            
+            return items.sort((a, b) => b.count - a.count);
+        }
+
+        // ===================================
+        // INVENTORY DASHBOARD
+        // ===================================
+        function openInventoryDashboard() {
+            updateInventoryDashboard();
+            document.getElementById('inventory-modal').classList.add('active');
+        }
+
+        function closeInventoryDashboard() {
+            document.getElementById('inventory-modal').classList.remove('active');
+        }
+
+        function updateInventoryDashboard() {
+            const inventoryListElement = document.getElementById('inventory-list');
+            if (!inventoryListElement) return;
+            
+            inventoryListElement.innerHTML = '';
+            
+            const categories = { 'Beverages': [], 'Snacks': [], 'Tiffin/Meals': [] };
+            
+            for (const itemName in inventory) {
+                const item = inventory[itemName];
+                const category = item.category || 'Other';
+                if (!categories[category]) categories[category] = [];
+                categories[category].push({ name: itemName, ...item });
+            }
+            
+            for (const categoryName in categories) {
+                if (categories[categoryName].length === 0) continue;
+                
+                const categorySection = document.createElement('div');
+                categorySection.className = 'inventory-category';
+                
+                const categoryTitle = document.createElement('h3');
+                categoryTitle.className = 'inventory-category-title';
+                categoryTitle.textContent = categoryName;
+                categorySection.appendChild(categoryTitle);
+                
+                categories[categoryName].forEach(item => {
+                    const status = getStockStatus(item.name);
+                    
+                    const itemRow = document.createElement('div');
+                    itemRow.className = `inventory-item inventory-status-${status}`;
+                    
+                    itemRow.innerHTML = `
+                        <div class="inventory-item-info">
+                            <div class="inventory-item-name">${item.name}</div>
+                            <div class="inventory-item-stock">
+                                <span class="stock-count">${item.currentStock} ${item.unit}</span>
+                                <span class="stock-status-badge status-${status}">${status.toUpperCase()}</span>
+                            </div>
+                        </div>
+                        <div class="inventory-item-controls">
+                            <button class="btn-stock-adjust" onclick="openStockAdjust('${item.name}')">Adjust Stock</button>
+                            <button class="btn-stock-quick" onclick="quickAddStock('${item.name}', 10)">+10</button>
+                        </div>
+                    `;
+                    
+                    categorySection.appendChild(itemRow);
+                });
+                
+                inventoryListElement.appendChild(categorySection);
+            }
+            
+            updateInventoryStats();
+        }
+
+        function updateInventoryStats() {
+            const stats = { total: 0, ok: 0, low: 0, critical: 0, out: 0 };
+            
+            for (const itemName in inventory) {
+                stats.total++;
+                const status = getStockStatus(itemName);
+                stats[status]++;
+            }
+            
+            document.getElementById('stat-total-items').textContent = stats.total;
+            document.getElementById('stat-ok-stock').textContent = stats.ok;
+            document.getElementById('stat-low-stock').textContent = stats.low;
+            document.getElementById('stat-critical-stock').textContent = stats.critical + stats.out;
+        }
+
+        function openStockAdjust(itemName) {
+            const item = inventory[itemName];
+            document.getElementById('adjust-item-name').textContent = itemName;
+            document.getElementById('adjust-current-stock').textContent = `Current: ${item.currentStock} ${item.unit}`;
+            document.getElementById('adjust-quantity').value = '';
+            document.getElementById('adjust-modal').setAttribute('data-item', itemName);
+            document.getElementById('adjust-modal').classList.add('active');
+        }
+
+        function closeStockAdjust() {
+            document.getElementById('adjust-modal').classList.remove('active');
+        }
+
+        function applyStockAdjustment() {
+            const itemName = document.getElementById('adjust-modal').getAttribute('data-item');
+            const action = document.querySelector('input[name="adjust-action"]:checked').value;
+            const quantity = parseInt(document.getElementById('adjust-quantity').value);
+            
+            if (isNaN(quantity) || quantity <= 0) {
+                alert('Please enter a valid quantity');
+                return;
+            }
+            
+            if (action === 'add') {
+                addStock(itemName, quantity);
+            } else if (action === 'set') {
+                setStock(itemName, quantity);
+            } else if (action === 'remove') {
+                const currentStock = inventory[itemName].currentStock;
+                const newStock = Math.max(0, currentStock - quantity);
+                setStock(itemName, newStock);
+            }
+            
+            closeStockAdjust();
+        }
+
+        function quickAddStock(itemName, quantity) {
+            addStock(itemName, quantity);
+        }
+
+        function resetInventory() {
+            if (confirm('Are you sure you want to reset all inventory to default values?')) {
+                inventory = {};
+                for (const itemName in defaultInventory) {
+                    inventory[itemName] = { ...defaultInventory[itemName], lastRestocked: new Date().toISOString() };
+                }
+                saveInventory();
+                updateStockDisplay();
+                updateInventoryDashboard();
+                alert('Inventory reset successfully!');
+            }
+        }
+
+        function exportInventory() {
+            const dataStr = JSON.stringify(inventory, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `inventory_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ===================================
+        // ADD NEW MENU ITEM
+        // ===================================
+        function openAddNewItem() {
+            var modal = document.getElementById('add-item-modal');
+            modal.classList.add('active');
+            var form = document.getElementById('new-item-form');
+            if (form) form.reset();
+        }
+
+        function closeAddNewItem() {
+            var modal = document.getElementById('add-item-modal');
+            modal.classList.remove('active');
+        }
+
+        function addNewMenuItem() {
+            const name = document.getElementById('new-item-name').value.trim();
+            const price = parseFloat(document.getElementById('new-item-price').value);
+            const category = document.getElementById('new-item-category').value;
+            const stock = parseInt(document.getElementById('new-item-stock').value);
+            const unit = document.getElementById('new-item-unit').value.trim();
+            const lowThreshold = parseInt(document.getElementById('new-item-low-threshold').value);
+            const criticalThreshold = parseInt(document.getElementById('new-item-critical-threshold').value);
+            
+            if (!name || !price || !stock || !unit || !lowThreshold || !criticalThreshold) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            if (menuItems[name]) {
+                alert('An item with this name already exists!');
+                return;
+            }
+            
+            menuItems[name] = price;
+            inventory[name] = {
+                currentStock: stock,
+                unit: unit,
+                lowThreshold: lowThreshold,
+                criticalThreshold: criticalThreshold,
+                category: category,
+                lastRestocked: new Date().toISOString()
+            };
+            
+            localStorage.setItem('customMenuItems', JSON.stringify(menuItems));
+            saveInventory();
+            
+            alert(`${name} added successfully! Please refresh the page to see it in the menu.`);
+            closeAddNewItem();
+        }
+
+        // ===================================
+        // ANALYTICS DASHBOARD
+        // ===================================
+        function openAnalyticsDashboard() {
+            var modal = document.getElementById('analytics-modal');
+            modal.classList.add('active');
+            updateAnalyticsDashboard('today');
+        }
+
+        function closeAnalyticsDashboard() {
+            var modal = document.getElementById('analytics-modal');
+            modal.classList.remove('active');
+        }
+
+        function updateAnalyticsDashboard(period) {
+            let orders = [];
+            let periodLabel = '';
+            
+            if (period === 'today') {
+                orders = getTodayOrders();
+                periodLabel = 'Today';
+            } else if (period === 'month') {
+                orders = getMonthOrders();
+                periodLabel = 'This Month';
+            } else if (period === 'year') {
+                orders = getYearOrders();
+                periodLabel = 'This Year';
+            } else if (period === 'custom') {
+                const startDate = new Date(document.getElementById('analytics-start-date').value);
+                const endDate = new Date(document.getElementById('analytics-end-date').value);
+                endDate.setHours(23, 59, 59);
+                orders = getOrdersByDateRange(startDate, endDate);
+                periodLabel = 'Custom Range';
+            }
+            
+            const periodLabelElement = document.getElementById('analytics-period-label');
+            if (periodLabelElement) periodLabelElement.textContent = periodLabel;
+            
+            const totalOrders = orders.length;
+            const totalRevenue = calculateRevenue(orders);
+            const avgOrderValue = totalOrders > 0 ? (totalRevenue / totalOrders).toFixed(2) : 0;
+            
+            const statTotalOrders = document.getElementById('stat-total-orders');
+            const statTotalRevenue = document.getElementById('stat-total-revenue');
+            const statAvgOrder = document.getElementById('stat-avg-order');
+            
+            if (statTotalOrders) statTotalOrders.textContent = totalOrders;
+            if (statTotalRevenue) statTotalRevenue.textContent = `₹${totalRevenue}`;
+            if (statAvgOrder) statAvgOrder.textContent = `₹${avgOrderValue}`;
+            
+            displayHourlyTraffic(getHourlyTraffic(orders));
+            displayTopSellingItems(getTopSellingItems(orders));
+            displayOrderList(orders);
+        }
+
+        function displayHourlyTraffic(hourlyData) {
+            const container = document.getElementById('hourly-traffic-chart');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            let peakHour = 0;
+            let peakCount = 0;
+            
+            for (let hour in hourlyData) {
+                if (hourlyData[hour].count > peakCount) {
+                    peakCount = hourlyData[hour].count;
+                    peakHour = hour;
+                }
+            }
+            
+            for (let hour = 0; hour < 24; hour++) {
+                const data = hourlyData[hour];
+                const barContainer = document.createElement('div');
+                barContainer.className = 'traffic-bar-container';
+                
+                const percentage = peakCount > 0 ? (data.count / peakCount) * 100 : 0;
+                const isPeak = hour == peakHour && data.count > 0;
+                
+                barContainer.innerHTML = `
+                    <div class="traffic-hour">${hour}:00</div>
+                    <div class="traffic-bar-wrapper">
+                        <div class="traffic-bar ${isPeak ? 'peak' : ''}" style="height: ${percentage}%">
+                            <span class="traffic-count">${data.count}</span>
+                        </div>
+                    </div>
+                    <div class="traffic-revenue">₹${data.revenue}</div>
+                `;
+                
+                container.appendChild(barContainer);
+            }
+            
+            const peakHourInfo = document.getElementById('peak-hour-info');
+            if (peakHourInfo) {
+                peakHourInfo.textContent = peakCount > 0 ? 
+                    `Peak Hour: ${peakHour}:00 - ${parseInt(peakHour) + 1}:00 (${peakCount} orders, ₹${hourlyData[peakHour].revenue})` : 
+                    'No orders yet';
+            }
+        }
+
+        function displayTopSellingItems(items) {
+            const container = document.getElementById('top-items-list');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const topTen = items.slice(0, 10);
+            
+            if (topTen.length === 0) {
+                container.innerHTML = '<p class="no-data">No sales data available</p>';
+                return;
+            }
+            
+            topTen.forEach((item, index) => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'top-item';
+                
+                itemElement.innerHTML = `
+                    <div class="top-item-rank">#${index + 1}</div>
+                    <div class="top-item-info">
+                        <div class="top-item-name">${item.name}</div>
+                        <div class="top-item-stats">Sold: ${item.count} | Revenue: ₹${item.revenue}</div>
+                    </div>
+                `;
+                
+                container.appendChild(itemElement);
+            });
+        }
+
+        function displayOrderList(orders) {
+            const container = document.getElementById('order-list');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            if (orders.length === 0) {
+                container.innerHTML = '<p class="no-data">No orders found</p>';
+                return;
+            }
+            
+            const sortedOrders = [...orders].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            sortedOrders.forEach(order => {
+                const orderElement = document.createElement('div');
+                orderElement.className = 'order-record';
+                
+                const timestamp = new Date(order.timestamp);
+                const dateStr = timestamp.toLocaleDateString();
+                const timeStr = timestamp.toLocaleTimeString();
+                
+                const itemsList = order.items.map(item => `${item.name} x${item.qty}`).join(', ');
+                
+                orderElement.innerHTML = `
+                    <div class="order-record-header">
+                        <span class="order-id">Order #${order.id}</span>
+                        <span class="order-total">₹${order.total}</span>
+                    </div>
+                    <div class="order-record-details">
+                        <div><strong>Table:</strong> ${order.table}</div>
+                        <div><strong>Date:</strong> ${dateStr}</div>
+                        <div><strong>Time:</strong> ${timeStr}</div>
+                        <div><strong>Items:</strong> ${itemsList}</div>
+                    </div>
+                `;
+                
+                container.appendChild(orderElement);
+            });
+        }
+
+        function exportAnalyticsReport() {
+            const period = document.querySelector('.analytics-filter-btn.active')?.getAttribute('data-period') || 'today';
+            let orders = [];
+            
+            if (period === 'today') {
+                orders = getTodayOrders();
+            } else if (period === 'month') {
+                orders = getMonthOrders();
+            } else if (period === 'year') {
+                orders = getYearOrders();
+            }
+            
+            const report = {
+                period: period,
+                generatedAt: new Date().toISOString(),
+                totalOrders: orders.length,
+                totalRevenue: calculateRevenue(orders),
+                hourlyTraffic: getHourlyTraffic(orders),
+                topSellingItems: getTopSellingItems(orders),
+                orders: orders
+            };
+            
+            const dataStr = JSON.stringify(report, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `analytics_report_${period}_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function clearOrderHistory() {
+            if (confirm('Are you sure you want to delete ALL order history? This cannot be undone!')) {
+                localStorage.removeItem('orderHistory');
+                alert('Order history cleared successfully!');
+                updateAnalyticsDashboard('today');
+            }
+        }
+
+        // ===================================
+        // INITIALIZATION
+        // ===================================
+        function init() {
+            console.log('🍽️ Smart Restaurant Ordering System Initialized');
+            
+            const customItems = localStorage.getItem('customMenuItems');
+            if (customItems) {
+                Object.assign(menuItems, JSON.parse(customItems));
+            }
+            
+            initializeInventory();
+            
+            const savedIP = localStorage.getItem('esp32-ip');
+            if (savedIP) {
+                document.getElementById('esp32-ip').value = savedIP;
+            }
+            
+            document.getElementById('esp32-ip').addEventListener('change', function() {
+                localStorage.setItem('esp32-ip', this.value);
+            });
+            
+            updateCartBar();
+            updateStockDisplay();
+            
+            console.log('✅ System Ready!');
+        }
+
+        // ===================================
+        // MAKE ALL FUNCTIONS GLOBAL
+        // ===================================
+        window.updateQuantity = updateQuantity;
+        window.openCheckout = openCheckout;
+        window.closeCheckout = closeCheckout;
+        window.confirmOrder = confirmOrder;
+        window.closeConfirmation = closeConfirmation;
+        window.testConnection = testConnection;
+        window.openInventoryDashboard = openInventoryDashboard;
+        window.closeInventoryDashboard = closeInventoryDashboard;
+        window.openAnalyticsDashboard = openAnalyticsDashboard;
+        window.closeAnalyticsDashboard = closeAnalyticsDashboard;
+        window.openAddNewItem = openAddNewItem;
+        window.closeAddNewItem = closeAddNewItem;
+        window.addNewMenuItem = addNewMenuItem;
+        window.openStockAdjust = openStockAdjust;
+        window.closeStockAdjust = closeStockAdjust;
+        window.applyStockAdjustment = applyStockAdjustment;
+        window.quickAddStock = quickAddStock;
+        window.resetInventory = resetInventory;
+        window.exportInventory = exportInventory;
+        window.updateAnalyticsDashboard = updateAnalyticsDashboard;
+        window.exportAnalyticsReport = exportAnalyticsReport;
+        window.clearOrderHistory = clearOrderHistory;
+
+        // Initialize on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'c' || event.key === 'C') {
+                if (!document.getElementById('checkout-modal').classList.contains('active') &&
+                    !document.getElementById('confirmation-modal').classList.contains('active')) {
+                    openCheckout();
+                }
+            }
+            
+            if (event.key === 'Escape') {
+                closeCheckout();
+                closeConfirmation();
+                closeInventoryDashboard();
+                closeAnalyticsDashboard();
+                closeAddNewItem();
+                closeStockAdjust();
+            }
+        });
+
+        console.log('✅ ALL FUNCTIONS LOADED - Restaurant System Ready!');
+    </script>
 </body>
 </html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Test</title>
+    <style>
+        button { padding: 10px 20px; margin: 5px; font-size: 16px; }
+        .output { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Simple Button Test</h1>
+    
+    <h2>Test 1: Inline onclick</h2>
+    <button onclick="test1()">Click Me - Test 1</button>
+    <div id="result1" class="output">Waiting...</div>
+    
+    <h2>Test 2: Menu Item Simulation</h2>
+    <p>Tea Quantity: <span id="qty">0</span></p>
+    <button onclick="changeQty(1)">+</button>
+    <button onclick="changeQty(-1)">-</button>
+    
+    <script>
+        let qty = 0;
+        
+        function test1() {
+            document.getElementById('result1').textContent = 'SUCCESS! Button clicked at ' + new Date().toLocaleTimeString();
+            alert('Test 1 works!');
+        }
+        
+        function changeQty(change) {
+            qty += change;
+            if (qty < 0) qty = 0;
+            document.getElementById('qty').textContent = qty;
+        }
+        
+        console.log('Simple test script loaded');
+    </script>
+</body>
+</html>

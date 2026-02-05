@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Script Loading</title>
+</head>
+<body>
+    <h1>Test Page</h1>
+    <button onclick="alert('Button works!'); console.log('Test button clicked');">Test Basic Button</button>
+    <br><br>
+    <button onclick="if(typeof updateQuantity === 'function') { alert('updateQuantity function exists!'); } else { alert('updateQuantity NOT FOUND!'); }">Test updateQuantity Function</button>
+    <br><br>
+    <div id="console-output" style="border:1px solid black; padding:10px; margin-top:20px; background:#f0f0f0;">
+        <h3>Console Output:</h3>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        // Override console.log to display on page
+        const logDiv = document.getElementById('log');
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logDiv.innerHTML += '<div>' + args.join(' ') + '</div>';
+        };
+        console.error = function(...args) {
+            originalLog.apply(console, args);
+            logDiv.innerHTML += '<div style="color:red;font-weight:bold;">ERROR: ' + args.join(' ') + '</div>';
+        };
+    </script>
+    
+    <script src="script.js"></script>
+    
+    <script>
+        console.log('After script.js loaded');
+        console.log('typeof updateQuantity: ' + typeof updateQuantity);
+        console.log('typeof window.updateQuantity: ' + typeof window.updateQuantity);
+        console.log('typeof menuItems: ' + typeof menuItems);
+    </script>
+</body>
+</html>

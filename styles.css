@@ -1006,7 +1006,9 @@ body {
 }
 
 .btn-stock-adjust,
-.btn-stock-quick {
+.btn-stock-quick,
+.btn-stock-remove,
+.btn-stock-delete {
     border: none;
     padding: 0.5rem 1rem;
     border-radius: var(--border-radius-md);
@@ -1032,6 +1034,24 @@ body {
 
 .btn-stock-quick:hover {
     background: #218838;
+}
+
+.btn-stock-remove {
+    background: var(--danger-color);
+    color: var(--white);
+}
+
+.btn-stock-remove:hover {
+    background: #c82333;
+}
+
+.btn-stock-delete {
+    background: #6f42c1;
+    color: var(--white);
+}
+
+.btn-stock-delete:hover {
+    background: #5a32a3;
 }
 
 /* Stock Adjustment Modal */
@@ -1202,7 +1222,9 @@ body {
     }
     
     .btn-stock-adjust,
-    .btn-stock-quick {
+    .btn-stock-quick,
+    .btn-stock-remove,
+    .btn-stock-delete {
         flex: 1;
     }
     

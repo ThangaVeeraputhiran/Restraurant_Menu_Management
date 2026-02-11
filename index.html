@@ -397,6 +397,7 @@
                     <button class="btn-primary" onclick="applyStockAdjustment()">Apply</button>
                 </div>
             </div>
+        </div>
 
         <!-- Add New Item Modal -->
         <div class="modal" id="add-item-modal">
@@ -1064,6 +1065,8 @@ Total: ₹${orderData.total}
                         <div class="inventory-item-controls">
                             <button class="btn-stock-adjust" onclick="openStockAdjust('${item.name}')">Adjust Stock</button>
                             <button class="btn-stock-quick" onclick="quickAddStock('${item.name}', 10)">+10</button>
+                            <button class="btn-stock-remove" onclick="quickRemoveStock('${item.name}', 10)">-10</button>
+                            <button class="btn-stock-delete" onclick="removeMenuItem('${item.name}')">Remove Item</button>
                         </div>
                     `;
                     
@@ -1131,6 +1134,77 @@ Total: ₹${orderData.total}
             addStock(itemName, quantity);
         }
 
+        function quickRemoveStock(itemName, quantity) {
+            const item = inventory[itemName];
+            if (!item) return;
+            const newStock = Math.max(0, item.currentStock - quantity);
+            setStock(itemName, newStock);
+        }
+
+        function getRemovedMenuItems() {
+            const removed = localStorage.getItem('removedMenuItems');
+            if (!removed) return [];
+            try {
+                const list = JSON.parse(removed);
+                return Array.isArray(list) ? list : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function saveRemovedMenuItems(list) {
+            localStorage.setItem('removedMenuItems', JSON.stringify(list));
+        }
+
+        function removeMenuItem(itemName, options) {
+            const settings = options || {};
+            const skipConfirm = settings.skipConfirm === true;
+            const persist = settings.persist !== false;
+
+            if (!skipConfirm) {
+                const ok = confirm(`Remove ${itemName} from menu and inventory? This cannot be undone.`);
+                if (!ok) return;
+            }
+
+            delete menuItems[itemName];
+            if (inventory[itemName]) {
+                delete inventory[itemName];
+                saveInventory();
+            }
+
+            if (typeof cart !== 'undefined' && cart[itemName]) {
+                delete cart[itemName];
+                updateCartBar();
+            }
+
+            const menuItemsElements = document.querySelectorAll('.menu-item');
+            menuItemsElements.forEach(function(element) {
+                if (element.getAttribute('data-name') === itemName) {
+                    element.remove();
+                }
+            });
+
+            if (persist) {
+                const removedItems = getRemovedMenuItems();
+                if (!removedItems.includes(itemName)) {
+                    removedItems.push(itemName);
+                    saveRemovedMenuItems(removedItems);
+                }
+                localStorage.setItem('customMenuItems', JSON.stringify(menuItems));
+            }
+
+            updateStockDisplay();
+            updateInventoryDashboard();
+        }
+
+        function applyRemovedMenuItems() {
+            const removedItems = getRemovedMenuItems();
+            if (removedItems.length === 0) return;
+            removedItems.forEach(function(itemName) {
+                removeMenuItem(itemName, { skipConfirm: true, persist: false });
+            });
+        }
+
         function resetInventory() {
             if (confirm('Are you sure you want to reset all inventory to default values?')) {
                 inventory = {};
@@ -1145,12 +1219,41 @@ Total: ₹${orderData.total}
         }
 
         function exportInventory() {
-            const dataStr = JSON.stringify(inventory, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const headers = [
+                'item',
+                'currentStock',
+                'unit',
+                'lowThreshold',
+                'criticalThreshold',
+                'category',
+                'lastRestocked'
+            ];
+
+            const rows = [headers.join(',')];
+
+            for (const itemName in inventory) {
+                const item = inventory[itemName] || {};
+                const values = [
+                    itemName,
+                    item.currentStock ?? '',
+                    item.unit ?? '',
+                    item.lowThreshold ?? '',
+                    item.criticalThreshold ?? '',
+                    item.category ?? '',
+                    item.lastRestocked ?? ''
+                ].map(function(value) {
+                    const text = String(value);
+                    return '"' + text.replace(/"/g, '""') + '"';
+                });
+                rows.push(values.join(','));
+            }
+
+            const dataStr = rows.join('\n');
+            const dataBlob = new Blob([dataStr], { type: 'text/csv;charset=utf-8' });
             const url = URL.createObjectURL(dataBlob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `inventory_${new Date().toISOString().split('T')[0]}.json`;
+            link.download = `inventory_${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
             URL.revokeObjectURL(url);
         }
@@ -1383,23 +1486,49 @@ Total: ₹${orderData.total}
             } else if (period === 'year') {
                 orders = getYearOrders();
             }
-            
-            const report = {
-                period: period,
-                generatedAt: new Date().toISOString(),
-                totalOrders: orders.length,
-                totalRevenue: calculateRevenue(orders),
-                hourlyTraffic: getHourlyTraffic(orders),
-                topSellingItems: getTopSellingItems(orders),
-                orders: orders
-            };
-            
-            const dataStr = JSON.stringify(report, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+
+            const generatedAt = new Date().toISOString();
+            const headers = [
+                'period',
+                'generatedAt',
+                'orderId',
+                'table',
+                'timestamp',
+                'time',
+                'total',
+                'items'
+            ];
+
+            const rows = [headers.join(',')];
+
+            orders.forEach(function(order) {
+                const itemsList = order.items.map(function(item) {
+                    return item.name + ' x' + item.qty;
+                }).join('; ');
+
+                const values = [
+                    period,
+                    generatedAt,
+                    order.id,
+                    order.table,
+                    order.timestamp,
+                    order.time || '',
+                    order.total,
+                    itemsList
+                ].map(function(value) {
+                    const text = String(value ?? '');
+                    return '"' + text.replace(/"/g, '""') + '"';
+                });
+
+                rows.push(values.join(','));
+            });
+
+            const dataStr = rows.join('\n');
+            const dataBlob = new Blob([dataStr], { type: 'text/csv;charset=utf-8' });
             const url = URL.createObjectURL(dataBlob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `analytics_report_${period}_${new Date().toISOString().split('T')[0]}.json`;
+            link.download = `analytics_report_${period}_${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
             URL.revokeObjectURL(url);
         }
@@ -1424,6 +1553,7 @@ Total: ₹${orderData.total}
             }
             
             initializeInventory();
+            applyRemovedMenuItems();
             
             const savedIP = localStorage.getItem('esp32-ip');
             if (savedIP) {
@@ -1460,6 +1590,8 @@ Total: ₹${orderData.total}
         window.closeStockAdjust = closeStockAdjust;
         window.applyStockAdjustment = applyStockAdjustment;
         window.quickAddStock = quickAddStock;
+        window.quickRemoveStock = quickRemoveStock;
+        window.removeMenuItem = removeMenuItem;
         window.resetInventory = resetInventory;
         window.exportInventory = exportInventory;
         window.updateAnalyticsDashboard = updateAnalyticsDashboard;

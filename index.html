@@ -1083,12 +1083,15 @@ Total: ₹${orderData.total}
             const inventoryListElement = document.getElementById('inventory-list');
             if (!inventoryListElement) return;
             
+            // If inventory is empty, use default inventory for display
+            const displayInventory = Object.keys(inventory).length > 0 ? inventory : defaultInventory;
+            
             inventoryListElement.innerHTML = '';
             
             const categories = { 'Beverages': [], 'Snacks': [], 'Tiffin/Meals': [] };
             
-            for (const itemName in inventory) {
-                const item = inventory[itemName];
+            for (const itemName in displayInventory) {
+                const item = displayInventory[itemName];
                 const category = item.category || 'Other';
                 if (!categories[category]) categories[category] = [];
                 categories[category].push({ name: itemName, ...item });
@@ -1843,7 +1846,10 @@ Total: ₹${orderData.total}
             });
 
             firebase.auth().onAuthStateChanged(function(user) {
-                console.log('Auth state changed:', user ? user.email : 'no user');
+                if (user) {
+                    console.log('Auth state changed - User email:', user.email);
+                    console.log('Checking against whitelist:', AUTHORIZED_EMAILS);
+                }
                 
                 if (user && AUTHORIZED_EMAILS.includes(user.email)) {
                     // Authorized user - unlock access
@@ -1858,6 +1864,7 @@ Total: ₹${orderData.total}
                 } else if (user) {
                     // Unauthorized user - sign them out and lock
                     console.log('❌ Unauthorized user:', user.email);
+                    console.log('Email not in whitelist. Authorized emails:', AUTHORIZED_EMAILS);
                     setAuthMessage('Email not authorized. Contact your restaurant admin.');
                     firebase.auth().signOut();
                     setAuthLocked(true);

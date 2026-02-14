@@ -1849,6 +1849,12 @@ Total: ₹${orderData.total}
                     // Authorized user - unlock access
                     console.log('✅ Authorized user:', user.email);
                     setAuthLocked(false);
+                    
+                    // Initialize Firebase sync now that user is authenticated
+                    if (typeof initFirebaseSync === 'function') {
+                        console.log('Initializing Firebase sync for authenticated user...');
+                        initFirebaseSync();
+                    }
                 } else if (user) {
                     // Unauthorized user - sign them out and lock
                     console.log('❌ Unauthorized user:', user.email);

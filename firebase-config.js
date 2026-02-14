@@ -23,6 +23,7 @@ const firebaseConfig = {
 
 // Initialize Firebase - wait for SDK to load
 let db, rtdb, inventoryRef, menuRef, ordersRef, analyticsRef;
+let firebaseSyncInitialized = false;
 
 function waitForFirebase() {
     return new Promise((resolve) => {
@@ -265,6 +266,13 @@ function initFirebaseSync() {
         return;
     }
     
+    // Prevent double initialization
+    if (firebaseSyncInitialized) {
+        console.log('🔥 Firebase sync already initialized');
+        return;
+    }
+    
+    firebaseSyncInitialized = true;
     console.log('🔥 Initializing Firebase sync...');
     
     // Listen for real-time changes

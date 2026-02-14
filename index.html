@@ -894,12 +894,21 @@
             deductStock(cart);
             saveOrderToHistory(orderData);
             
-            // Also save to Firebase for real-time sync and persistent storage
-            if (typeof saveOrderToFirebase === 'function') {
+            // Save to Firebase with detailed metadata
+            if (typeof saveDetailedOrderToFirebase === 'function') {
                 try {
-                    saveOrderToFirebase(orderData);
+                    const metadata = {
+                        paymentMethod: 'cash',
+                        status: 'completed',
+                        staffName: 'online-system'
+                    };
+                    saveDetailedOrderToFirebase(orderData, metadata);
                 } catch (error) {
-                    console.warn('Firebase not yet initialized, but order saved locally');
+                    console.warn('Firebase detailed order save failed:', error);
+                    // Fallback to simple save
+                    if (typeof saveOrderToFirebase === 'function') {
+                        saveOrderToFirebase(orderData);
+                    }
                 }
             }
 
@@ -1536,9 +1545,29 @@ Total: ₹${orderData.total}
             if (statTotalRevenue) statTotalRevenue.textContent = `₹${totalRevenue}`;
             if (statAvgOrder) statAvgOrder.textContent = `₹${avgOrderValue}`;
             
-            displayHourlyTraffic(getHourlyTraffic(orders));
-            displayTopSellingItems(getTopSellingItems(orders));
+            const hourlyTraffic = getHourlyTraffic(orders);
+            const topItems = getTopSellingItems(orders);
+            
+            displayHourlyTraffic(hourlyTraffic);
+            displayTopSellingItems(topItems);
             displayOrderList(orders);
+            
+            // Save analytics snapshot to Firebase
+            if (typeof saveAnalyticsSnapshot === 'function') {
+                try {
+                    await saveAnalyticsSnapshot({
+                        totalOrders: totalOrders,
+                        totalRevenue: totalRevenue,
+                        avgOrderValue: parseFloat(avgOrderValue),
+                        topItems: topItems,
+                        hourlyTraffic: hourlyTraffic,
+                        period: period,
+                        ordersCount: orders.length
+                    });
+                } catch (error) {
+                    console.warn('Analytics snapshot save failed:', error);
+                }
+            }
         }
 
         function displayHourlyTraffic(hourlyData) {

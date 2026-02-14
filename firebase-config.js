@@ -348,14 +348,236 @@ async function getAnalyticsFromFirebase(period = 'today') {
 }
 
 // ============================================
+// SAVE ANALYTICS SNAPSHOTS TO FIREBASE
+// ============================================
+
+async function saveAnalyticsSnapshot(analyticData) {
+    if (!db) {
+        console.warn('⚠️ Firebase not ready, analytics not saved');
+        return false;
+    }
+    
+    try {
+        const analyticsRef = db.collection('restaurants').doc('main').collection('analytics');
+        
+        const snapshot = {
+            timestamp: new Date().toISOString(),
+            date: new Date().toLocaleDateString(),
+            totalOrders: analyticData.totalOrders || 0,
+            totalRevenue: analyticData.totalRevenue || 0,
+            avgOrderValue: analyticData.avgOrderValue || 0,
+            topItems: analyticData.topItems || [],
+            hourlyTraffic: analyticData.hourlyTraffic || {},
+            period: analyticData.period || 'daily'
+        };
+        
+        // Save with timestamp as document ID for easy retrieval
+        const docRef = await analyticsRef.add(snapshot);
+        console.log('✅ Analytics snapshot saved:', docRef.id);
+        return true;
+    } catch (error) {
+        console.error('❌ Error saving analytics:', error);
+        return false;
+    }
+}
+
+// ============================================
+// GET ANALYTICS SNAPSHOTS FROM FIREBASE
+// ============================================
+
+async function getAnalyticsSnapshots(period = 'today', limit = 100) {
+    if (!db) {
+        console.warn('⚠️ Firebase not ready');
+        return [];
+    }
+    
+    try {
+        const analyticsRef = db.collection('restaurants').doc('main').collection('analytics');
+        
+        let query = analyticsRef.orderBy('timestamp', 'desc').limit(limit);
+        
+        // Filter by period if needed
+        if (period === 'today') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            query = query.where('timestamp', '>=', today.toISOString());
+        } else if (period === 'week') {
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            query = query.where('timestamp', '>=', weekAgo.toISOString());
+        }
+        
+        const snapshot = await query.get();
+        const snapshots = [];
+        
+        snapshot.forEach(doc => {
+            snapshots.push({ id: doc.id, ...doc.data() });
+        });
+        
+        return snapshots;
+    } catch (error) {
+        console.error('Error retrieving analytics:', error);
+        return [];
+    }
+}
+
+// ============================================
+// SAVE DETAILED ORDER WITH ALL METADATA
+// ============================================
+
+async function saveDetailedOrderToFirebase(orderData, metadata = {}) {
+    if (!db) {
+        console.warn('⚠️ Firebase not ready, saving offline...');
+        return false;
+    }
+    
+    try {
+        const ordersRef = db.collection('restaurants').doc('main').collection('orders');
+        
+        const now = new Date();
+        const detailedOrder = {
+            orderId: orderData.id || `ORD-${Date.now()}`,
+            timestamp: now.toISOString(),
+            date: now.toLocaleDateString(),
+            time: now.toLocaleTimeString(),
+            hour: now.getHours(),
+            dayOfWeek: now.toLocaleDateString('en-US', { weekday: 'long' }),
+            table: orderData.table || 'N/A',
+            items: orderData.items || [],
+            itemsCount: orderData.items ? orderData.items.reduce((sum, item) => sum + item.qty, 0) : 0,
+            total: orderData.total || 0,
+            duration: orderData.time || 'N/A',
+            // Metadata
+            paymentMethod: metadata.paymentMethod || 'cash',
+            status: metadata.status || 'completed',
+            notes: metadata.notes || '',
+            staffName: metadata.staffName || 'system',
+            ipAddress: metadata.ipAddress || 'unknown'
+        };
+        
+        // Add order to Firestore
+        const docRef = await ordersRef.add(detailedOrder);
+        console.log('✅ Detailed order saved to Firebase:', docRef.id);
+        
+        // Update daily analytics in real-time
+        try {
+            await updateDailyAnalytics(detailedOrder);
+        } catch (error) {
+            console.warn('Daily analytics update failed:', error);
+        }
+        
+        // Also save to localStorage for offline access
+        const orders = JSON.parse(localStorage.getItem('orderHistory') || '[]');
+        orders.push(detailedOrder);
+        localStorage.setItem('orderHistory', JSON.stringify(orders));
+        
+        return true;
+    } catch (error) {
+        console.error('❌ Error saving detailed order:', error);
+        return false;
+    }
+}
+
+// ============================================
+// UPDATE DAILY ANALYTICS DOCUMENT
+// ============================================
+
+async function updateDailyAnalytics(order) {
+    if (!db) return;
+    
+    try {
+        const today = new Date().toLocaleDateString();
+        const dailyRef = db.collection('restaurants').doc('main').collection('dailyAnalytics').doc(today);
+        
+        const dailyDoc = await dailyRef.get();
+        
+        if (dailyDoc.exists) {
+            // Update existing daily record
+            const data = dailyDoc.data();
+            await dailyRef.update({
+                totalOrders: (data.totalOrders || 0) + 1,
+                totalRevenue: (data.totalRevenue || 0) + (order.total || 0),
+                itemsSold: (data.itemsSold || 0) + (order.itemsCount || 0),
+                lastUpdated: new Date().toISOString()
+            });
+        } else {
+            // Create new daily record
+            await dailyRef.set({
+                date: today,
+                totalOrders: 1,
+                totalRevenue: order.total || 0,
+                itemsSold: order.itemsCount || 0,
+                createdAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString()
+            });
+        }
+    } catch (error) {
+        console.error('Error updating daily analytics:', error);
+    }
+}
+
+// ============================================
+// GET SUMMARY ANALYTICS FOR DASHBOARD
+// ============================================
+
+async function getDashboardAnalytics(days = 30) {
+    if (!db) {
+        console.warn('⚠️ Firebase not ready');
+        return null;
+    }
+    
+    try {
+        const analyticsRef = db.collection('restaurants').doc('main').collection('dailyAnalytics');
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+        
+        const snapshot = await analyticsRef
+            .where('createdAt', '>=', startDate.toISOString())
+            .orderBy('createdAt', 'desc')
+            .get();
+        
+        let summary = {
+            totalOrders: 0,
+            totalRevenue: 0,
+            totalItemsSold: 0,
+            avgOrderValue: 0,
+            daysAnalyzed: 0,
+            dailyRecords: []
+        };
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            summary.totalOrders += data.totalOrders || 0;
+            summary.totalRevenue += data.totalRevenue || 0;
+            summary.totalItemsSold += data.itemsSold || 0;
+            summary.daysAnalyzed++;
+            summary.dailyRecords.push({ date: doc.id, ...data });
+        });
+        
+        summary.avgOrderValue = summary.totalOrders > 0 ? 
+            (summary.totalRevenue / summary.totalOrders).toFixed(2) : 0;
+        
+        return summary;
+    } catch (error) {
+        console.error('Error getting dashboard analytics:', error);
+        return null;
+    }
+}
+
+// ============================================
 // EXPORT FUNCTIONS
 // ============================================
 window.initFirebaseSync = initFirebaseSync;
 window.syncInventoryToFirebase = syncInventoryToFirebase;
 window.saveOrderToFirebase = saveOrderToFirebase;
+window.saveDetailedOrderToFirebase = saveDetailedOrderToFirebase;
 window.getOrdersFromFirebase = getOrdersFromFirebase;
 window.getTodayOrdersFromFirebase = getTodayOrdersFromFirebase;
 window.getAnalyticsFromFirebase = getAnalyticsFromFirebase;
+window.saveAnalyticsSnapshot = saveAnalyticsSnapshot;
+window.getAnalyticsSnapshots = getAnalyticsSnapshots;
+window.updateDailyAnalytics = updateDailyAnalytics;
+window.getDashboardAnalytics = getDashboardAnalytics;
 window.loginWithEmail = loginWithEmail;
 window.logout = logout;
 window.createUserAccount = createUserAccount;

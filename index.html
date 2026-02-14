@@ -13,7 +13,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 </head>
 <body>
-    <div id="auth-overlay" class="auth-overlay active" aria-live="polite">
+    <div id="auth-overlay" class="auth-overlay" aria-live="polite">
         <div class="auth-card">
             <h2>🔒 Staff Login</h2>
             <p class="auth-subtitle">Sign in to manage orders, inventory, and reports.</p>
@@ -1799,15 +1799,24 @@ Total: ₹${orderData.total}
             const overlay = document.getElementById('auth-overlay');
             const logoutBtn = document.getElementById('btn-logout');
             const status = document.getElementById('auth-status');
+            const container = document.querySelector('.container');
 
             if (locked) {
                 document.body.classList.add('auth-locked');
-                if (overlay) overlay.classList.remove('hidden');
+                if (overlay) {
+                    overlay.classList.remove('hidden');
+                    overlay.style.display = 'flex';
+                }
+                if (container) container.style.display = 'none';
                 if (logoutBtn) logoutBtn.style.display = 'none';
                 if (status) status.textContent = 'Signed out';
             } else {
                 document.body.classList.remove('auth-locked');
-                if (overlay) overlay.classList.add('hidden');
+                if (overlay) {
+                    overlay.classList.add('hidden');
+                    overlay.style.display = 'none';
+                }
+                if (container) container.style.display = 'block';
                 if (logoutBtn) logoutBtn.style.display = 'inline-flex';
                 if (status) status.textContent = 'Signed in';
             }
@@ -1820,21 +1829,30 @@ Total: ₹${orderData.total}
                 return;
             }
 
+            // Force auth overlay to show initially
+            setAuthLocked(true);
+
+            // Set persistence but don't auto-unlock from cached session
             firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(error) {
                 console.warn('Auth persistence error:', error);
             });
 
             firebase.auth().onAuthStateChanged(function(user) {
+                console.log('Auth state changed:', user ? user.email : 'no user');
+                
                 if (user && AUTHORIZED_EMAILS.includes(user.email)) {
-                    // Authorized user
+                    // Authorized user - unlock access
+                    console.log('✅ Authorized user:', user.email);
                     setAuthLocked(false);
                 } else if (user) {
-                    // Unauthorized user - sign them out
+                    // Unauthorized user - sign them out and lock
+                    console.log('❌ Unauthorized user:', user.email);
                     setAuthMessage('Email not authorized. Contact your restaurant admin.');
                     firebase.auth().signOut();
                     setAuthLocked(true);
                 } else {
-                    // No user
+                    // No user - keep locked
+                    console.log('No authenticated user');
                     setAuthLocked(true);
                 }
             });
@@ -1956,7 +1974,20 @@ Total: ₹${orderData.total}
     <script src="firebase-config.js"></script>
     
     <script>
-        // Initialize Firebase sync when DOM is ready
+        // Initialize auth immediately (don't wait for Firebase sync)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                if (typeof initAuthUI === 'function') {
+                    initAuthUI();
+                }
+            });
+        } else {
+            if (typeof initAuthUI === 'function') {
+                initAuthUI();
+            }
+        }
+
+        // Initialize Firebase sync when DOM is ready (after auth)
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(function() {
@@ -1964,10 +1995,7 @@ Total: ₹${orderData.total}
                         initFirebaseSync();
                         console.log('🔥 Firebase sync initialized');
                     }
-                    if (typeof initAuthUI === 'function') {
-                        initAuthUI();
-                    }
-                }, 1000);
+                }, 500);
             });
         } else {
             setTimeout(function() {
@@ -1975,10 +2003,7 @@ Total: ₹${orderData.total}
                     initFirebaseSync();
                     console.log('🔥 Firebase sync initialized');
                 }
-                if (typeof initAuthUI === 'function') {
-                    initAuthUI();
-                }
-            }, 1000);
+            }, 500);
         }
     </script>
 </body>

@@ -164,24 +164,50 @@ function saveOrderToFirebase(orderData) {
 
 async function getOrdersFromFirebase(startDate, endDate) {
     if (!db) {
-        console.warn('⚠️ Firebase not ready');
-        return [];
+        console.warn('⚠️ Firebase not ready, falling back to localStorage');
+        return getOrdersFromLocalStorage(startDate, endDate);
     }
     
-    const ordersRef = db.collection('restaurants').doc('main').collection('orders');
-    
-    const snapshot = await ordersRef
-        .where('timestamp', '>=', startDate.toISOString())
-        .where('timestamp', '<=', endDate.toISOString())
-        .orderBy('timestamp', 'desc')
-        .get();
-    
-    const orders = [];
-    snapshot.forEach(doc => {
-        orders.push({ id: doc.id, ...doc.data() });
-    });
-    
-    return orders;
+    try {
+        const ordersRef = db.collection('restaurants').doc('main').collection('orders');
+        
+        const snapshot = await ordersRef
+            .where('timestamp', '>=', startDate.toISOString())
+            .where('timestamp', '<=', endDate.toISOString())
+            .orderBy('timestamp', 'desc')
+            .get();
+        
+        const orders = [];
+        snapshot.forEach(doc => {
+            orders.push({ id: doc.id, ...doc.data() });
+        });
+        
+        // If no Firebase orders, check localStorage
+        if (orders.length === 0) {
+            console.log('No Firebase orders found, checking localStorage');
+            return getOrdersFromLocalStorage(startDate, endDate);
+        }
+        
+        return orders;
+    } catch (error) {
+        console.warn('Firebase error:', error, '- falling back to localStorage');
+        return getOrdersFromLocalStorage(startDate, endDate);
+    }
+}
+
+// Helper function to get orders from localStorage for date range
+function getOrdersFromLocalStorage(startDate, endDate) {
+    try {
+        const orderHistory = JSON.parse(localStorage.getItem('orderHistory') || '[]');
+        const filtered = orderHistory.filter(order => {
+            const orderDate = new Date(order.timestamp);
+            return orderDate >= startDate && orderDate <= endDate;
+        });
+        return filtered.reverse(); // Most recent first
+    } catch (error) {
+        console.warn('localStorage error:', error);
+        return [];
+    }
 }
 
 // ============================================

@@ -13,6 +13,25 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 </head>
 <body>
+    <div id="auth-overlay" class="auth-overlay active" aria-live="polite">
+        <div class="auth-card">
+            <h2>🔒 Staff Login</h2>
+            <p class="auth-subtitle">Sign in to manage orders, inventory, and reports.</p>
+            <div class="auth-form">
+                <label for="auth-email">Email</label>
+                <input type="email" id="auth-email" placeholder="name@restaurant.com" autocomplete="email">
+                <label for="auth-password">Password</label>
+                <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password">
+                <div class="auth-actions">
+                    <button class="btn-primary" onclick="loginUser()">Sign In</button>
+                </div>
+                <button class="btn-google" onclick="signInWithGoogle()">Continue with Google</button>
+                <p class="auth-info">💬 Need an account? Contact your restaurant admin.</p>
+                <p id="auth-message" class="auth-message"></p>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <!-- Header -->
         <header class="header">
@@ -35,6 +54,8 @@
                 <button class="btn-test" onclick="testConnection()">Test Connection</button>
                 <button class="btn-inventory" onclick="openInventoryDashboard()">📦 Manage Inventory</button>
                 <button class="btn-analytics" onclick="openAnalyticsDashboard()">📊 Analytics & Reports</button>
+                <button class="btn-secondary btn-logout" id="btn-logout" onclick="logoutUser()">Sign Out</button>
+                <span id="auth-status" class="auth-status"></span>
                 <span id="connection-status"></span>
             </div>
         </div>
@@ -1730,6 +1751,110 @@ Total: ₹${orderData.total}
         }
 
         // ===================================
+        // AUTHENTICATION UI
+        // ===================================
+        function setAuthMessage(text) {
+            const message = document.getElementById('auth-message');
+            if (message) {
+                message.textContent = text || '';
+            }
+        }
+
+        // Whitelist of authorized staff emails
+        const AUTHORIZED_EMAILS = [
+            'sharunandha21@gmail.com',
+            'admin321@restaurant.com'
+        ];
+
+        function setAuthLocked(locked) {
+            const overlay = document.getElementById('auth-overlay');
+            const logoutBtn = document.getElementById('btn-logout');
+            const status = document.getElementById('auth-status');
+
+            if (locked) {
+                document.body.classList.add('auth-locked');
+                if (overlay) overlay.classList.remove('hidden');
+                if (logoutBtn) logoutBtn.style.display = 'none';
+                if (status) status.textContent = 'Signed out';
+            } else {
+                document.body.classList.remove('auth-locked');
+                if (overlay) overlay.classList.add('hidden');
+                if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+                if (status) status.textContent = 'Signed in';
+            }
+        }
+
+        function initAuthUI() {
+            if (typeof firebase === 'undefined' || !firebase.auth) {
+                setAuthMessage('Auth not ready. Please refresh the page.');
+                setAuthLocked(true);
+                return;
+            }
+
+            firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(error) {
+                console.warn('Auth persistence error:', error);
+            });
+
+            firebase.auth().onAuthStateChanged(function(user) {
+                if (user && AUTHORIZED_EMAILS.includes(user.email)) {
+                    // Authorized user
+                    setAuthLocked(false);
+                } else if (user) {
+                    // Unauthorized user - sign them out
+                    setAuthMessage('Email not authorized. Contact your restaurant admin.');
+                    firebase.auth().signOut();
+                    setAuthLocked(true);
+                } else {
+                    // No user
+                    setAuthLocked(true);
+                }
+            });
+        }
+
+        function loginUser() {
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+
+            if (!email || !password) {
+                setAuthMessage('Enter email and password.');
+                return;
+            }
+
+            // Check whitelist before attempting login
+            if (!AUTHORIZED_EMAILS.includes(email)) {
+                setAuthMessage('Email not authorized. Contact your restaurant admin.');
+                return;
+            }
+
+            setAuthMessage('Signing in...');
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then(function() {
+                    setAuthMessage('');
+                })
+                .catch(function(error) {
+                    setAuthMessage(error.message);
+                });
+        }
+
+        function signInWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            setAuthMessage('Opening Google sign-in...');
+            firebase.auth().signInWithPopup(provider)
+                .then(function() {
+                    setAuthMessage('');
+                })
+                .catch(function(error) {
+                    setAuthMessage(error.message);
+                });
+        }
+
+        function logoutUser() {
+            firebase.auth().signOut().catch(function(error) {
+                console.warn('Logout failed:', error);
+            });
+        }
+
+        // ===================================
         // MAKE ALL FUNCTIONS GLOBAL
         // ===================================
         window.updateQuantity = updateQuantity;
@@ -1758,6 +1883,10 @@ Total: ₹${orderData.total}
         window.updateAnalyticsDashboard = updateAnalyticsDashboard;
         window.exportAnalyticsReport = exportAnalyticsReport;
         window.clearOrderHistory = clearOrderHistory;
+        window.loginUser = loginUser;
+        window.registerUser = registerUser;
+        window.signInWithGoogle = signInWithGoogle;
+        window.logoutUser = logoutUser;
 
         // Initialize on page load
         if (document.readyState === 'loading') {
@@ -1806,6 +1935,9 @@ Total: ₹${orderData.total}
                         initFirebaseSync();
                         console.log('🔥 Firebase sync initialized');
                     }
+                    if (typeof initAuthUI === 'function') {
+                        initAuthUI();
+                    }
                 }, 1000);
             });
         } else {
@@ -1813,6 +1945,9 @@ Total: ₹${orderData.total}
                 if (typeof initFirebaseSync === 'function') {
                     initFirebaseSync();
                     console.log('🔥 Firebase sync initialized');
+                }
+                if (typeof initAuthUI === 'function') {
+                    initAuthUI();
                 }
             }, 1000);
         }

@@ -591,6 +591,104 @@ body {
     }
 }
 
+/* ===================================
+   MOBILE REFINEMENTS
+   =================================== */
+@media (max-width: 600px) {
+    .header {
+        padding: var(--spacing-lg);
+    }
+
+    .config-panel {
+        padding: var(--spacing-md);
+    }
+
+    .config-actions {
+        gap: var(--spacing-sm);
+    }
+
+    .menu-container {
+        padding: var(--spacing-lg);
+    }
+
+    .menu-item {
+        padding: var(--spacing-md);
+    }
+
+    .item-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
+    }
+
+    .item-controls {
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .btn-minus,
+    .btn-plus {
+        width: 44px;
+        height: 44px;
+        font-size: 1.4rem;
+    }
+
+    .cart-bar {
+        padding: var(--spacing-md);
+    }
+
+    .btn-checkout {
+        padding: 0.85rem 1rem;
+        font-size: 1rem;
+    }
+
+    .modal-content {
+        max-height: 92vh;
+    }
+
+    .modal-header {
+        padding: var(--spacing-md);
+    }
+
+    .modal-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .modal-body {
+        padding: var(--spacing-md);
+    }
+
+    .modal-footer {
+        padding: var(--spacing-md);
+    }
+
+    .cart-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+
+    .inventory-item-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .btn-stock-adjust,
+    .btn-stock-quick,
+    .btn-stock-remove,
+    .btn-stock-delete {
+        width: 100%;
+    }
+
+    .analytics-section h3 {
+        font-size: 1.1rem;
+    }
+
+    .order-record {
+        padding: var(--spacing-md);
+    }
+}
+
 @media (max-width: 480px) {
     .header h1 {
         font-size: 1.5rem;

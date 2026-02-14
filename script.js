@@ -676,6 +676,19 @@ function init() {
         localStorage.setItem('esp32-ip', this.value);
     });
     
+    // Prevent form submission on Enter key for new item form
+    const newItemForm = document.getElementById('new-item-form');
+    if (newItemForm) {
+        newItemForm.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                // Only submit if the button is visible and accessible
+                // The user should click the "Add Item" button instead
+                return false;
+            }
+        });
+    }
+    
     updateCartBar();
     updateAllStockIndicators();
     
@@ -1050,6 +1063,69 @@ function closeAddNewItem() {
 }
 
 /**
+ * Dynamically render a new menu item in the UI
+ * @param {string} itemName - Name of the item
+ * @param {number} price - Price of the item
+ * @param {string} category - Category of the item
+ */
+function renderNewMenuItem(itemName, price, category) {
+    // Map category to container
+    const categoryMap = {
+        'Beverages': '☕ Beverages',
+        'Snacks': '🍪 Snacks',
+        'Tiffin/Meals': '🍛 Tiffin/Meals'
+    };
+    
+    // Find the menu grid for this category
+    const categoryTitle = categoryMap[category] || category;
+    const categories = document.querySelectorAll('.category-title');
+    let menuGrid = null;
+    
+    for (let cat of categories) {
+        if (cat.textContent.includes(categoryTitle)) {
+            menuGrid = cat.closest('.category').querySelector('.menu-grid');
+            break;
+        }
+    }
+    
+    // If category not found, create it
+    if (!menuGrid) {
+        const menuContainer = document.querySelector('.menu-container');
+        const newCategory = document.createElement('div');
+        newCategory.className = 'category';
+        newCategory.innerHTML = `
+            <h3 class="category-title">${categoryTitle}</h3>
+            <div class="menu-grid"></div>
+        `;
+        menuContainer.appendChild(newCategory);
+        menuGrid = newCategory.querySelector('.menu-grid');
+    }
+    
+    // Create the menu item HTML
+    const menuItem = document.createElement('div');
+    menuItem.className = 'menu-item';
+    menuItem.setAttribute('data-name', itemName);
+    menuItem.setAttribute('data-price', price);
+    menuItem.innerHTML = `
+        <div class="item-info">
+            <span class="item-name">${itemName}</span>
+            <span class="item-price">₹${price}</span>
+        </div>
+        <div class="item-controls">
+            <button class="btn-minus" onclick="updateQuantity('${itemName}', -1)">−</button>
+            <span class="quantity" id="qty-${itemName}">0</span>
+            <button class="btn-plus" onclick="updateQuantity('${itemName}', 1)">+</button>
+        </div>
+    `;
+    
+    // Append to menu grid
+    menuGrid.appendChild(menuItem);
+    
+    // Update stock indicator for the new item
+    updateStockIndicator(itemName);
+}
+
+/**
  * Add new menu item
  */
 function addNewMenuItem() {
@@ -1094,13 +1170,12 @@ function addNewMenuItem() {
     localStorage.setItem('customMenuItems', JSON.stringify(menuItems));
     saveInventory();
     
+    // Dynamically render the new item in the UI
+    renderNewMenuItem(name, price, category);
+    
     // Refresh UI
     alert(`${name} added successfully!`);
     closeAddNewItem();
-    
-    // Note: User will need to refresh page to see new item in menu
-    // Or we can dynamically add it to the menu
-    location.reload();
 }
 
 /**
@@ -1620,6 +1695,7 @@ window.closeAnalyticsDashboard = closeAnalyticsDashboard;
 window.openAddNewItem = openAddNewItem;
 window.closeAddNewItem = closeAddNewItem;
 window.addNewMenuItem = addNewMenuItem;
+window.renderNewMenuItem = renderNewMenuItem;
 window.openStockAdjust = openStockAdjust;
 window.closeStockAdjust = closeStockAdjust;
 window.applyStockAdjustment = applyStockAdjustment;

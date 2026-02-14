@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Restaurant - IoT Kitchen Display System</title>
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- Firebase SDK (compat for global firebase object) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 </head>
 <body>
     <div class="container">
@@ -570,6 +576,7 @@
 
         let cart = {};
         let inventory = {};
+        let lastLocalInventoryUpdate = 0;
 
         const defaultInventory = {
             "Tea": { currentStock: 100, unit: "cups", lowThreshold: 20, criticalThreshold: 5, category: "Beverages" },
@@ -631,6 +638,7 @@
                     if (inventory[itemName].currentStock < 0) inventory[itemName].currentStock = 0;
                 }
             }
+            lastLocalInventoryUpdate = Date.now();
             saveInventory();
             updateStockDisplay();
         }
@@ -639,6 +647,7 @@
             if (inventory[itemName]) {
                 inventory[itemName].currentStock += quantity;
                 inventory[itemName].lastRestocked = new Date().toISOString();
+                lastLocalInventoryUpdate = Date.now();
                 saveInventory();
                 updateStockDisplay();
                 updateInventoryDashboard();
@@ -649,6 +658,7 @@
             if (inventory[itemName]) {
                 inventory[itemName].currentStock = quantity;
                 inventory[itemName].lastRestocked = new Date().toISOString();
+                lastLocalInventoryUpdate = Date.now();
                 saveInventory();
                 updateStockDisplay();
                 updateInventoryDashboard();
@@ -862,6 +872,23 @@
         function processOrder(orderData) {
             deductStock(cart);
             saveOrderToHistory(orderData);
+            
+            // Also save to Firebase for real-time sync and persistent storage
+            if (typeof saveOrderToFirebase === 'function') {
+                try {
+                    saveOrderToFirebase(orderData);
+                } catch (error) {
+                    console.warn('Firebase not yet initialized, but order saved locally');
+                }
+            }
+
+            if (typeof syncInventoryToFirebase === 'function') {
+                try {
+                    syncInventoryToFirebase();
+                } catch (error) {
+                    console.warn('Inventory sync failed, will retry on next update');
+                }
+            }
         }
 
         function showConfirmation(orderData) {
@@ -1273,6 +1300,86 @@ Total: ₹${orderData.total}
             modal.classList.remove('active');
         }
 
+        function renderNewMenuItem(itemName, price, category) {
+            // Check if item already exists
+            const existing = document.querySelector(`[data-name="${itemName}"]`);
+            if (existing) return; // Item already rendered
+            
+            // Map category to display name
+            const categoryMap = {
+                'Beverages': '☕ Beverages',
+                'Snacks': '🍪 Snacks',
+                'Tiffin/Meals': '🍛 Tiffin/Meals'
+            };
+            
+            // Find the menu grid for this category
+            const categoryTitle = categoryMap[category] || category;
+            const categories = document.querySelectorAll('.category-title');
+            let menuGrid = null;
+            
+            for (let cat of categories) {
+                if (cat.textContent.includes(categoryTitle)) {
+                    menuGrid = cat.closest('.category').querySelector('.menu-grid');
+                    break;
+                }
+            }
+            
+            // If category not found, create it
+            if (!menuGrid) {
+                const menuContainer = document.querySelector('.menu-container');
+                const newCategory = document.createElement('div');
+                newCategory.className = 'category';
+                newCategory.innerHTML = `
+                    <h3 class="category-title">${categoryTitle}</h3>
+                    <div class="menu-grid"></div>
+                `;
+                menuContainer.appendChild(newCategory);
+                menuGrid = newCategory.querySelector('.menu-grid');
+            }
+            
+            // Create the menu item HTML
+            const menuItem = document.createElement('div');
+            menuItem.className = 'menu-item';
+            menuItem.setAttribute('data-name', itemName);
+            menuItem.setAttribute('data-price', price);
+            menuItem.innerHTML = `
+                <div class="item-info">
+                    <span class="item-name">${itemName}</span>
+                    <span class="item-price">₹${price}</span>
+                </div>
+                <div class="item-controls">
+                    <button class="btn-minus" onclick="updateQuantity('${itemName}', -1)">−</button>
+                    <span class="quantity" id="qty-${itemName}">0</span>
+                    <button class="btn-plus" onclick="updateQuantity('${itemName}', 1)">+</button>
+                </div>
+            `;
+            
+            // Append to menu grid
+            menuGrid.appendChild(menuItem);
+            
+            // Update stock indicator for the new item
+            updateStockDisplay();
+        }
+
+        function renderAllCustomItems() {
+            // Load and render all custom items from menuItems that aren't already on the page
+            for (const itemName in menuItems) {
+                // Skip default items that are already in the HTML
+                const defaultItems = ['Tea', 'Coffee', 'Horlicks', 'Boost', 'Vada', 'Idly (Plate)', 'Poori (Plate)', 'Dosa', 'Masal Dosa', 'Paper Roast', 'Ghee Roast', 'Onion Dosa', 'Uthappam', 'Onion Uthappam', 'Chapathi', 'Porota (Plate)', 'Meals'];
+                if (defaultItems.includes(itemName)) continue;
+                
+                // Check if already rendered
+                if (document.querySelector(`[data-name="${itemName}"]`)) continue;
+                
+                // Get category from inventory if available
+                const category = (inventory[itemName] && inventory[itemName].category) || 'Other';
+                const price = menuItems[itemName];
+                
+                // Render this custom item
+                renderNewMenuItem(itemName, price, category);
+            }
+        }
+
         function addNewMenuItem() {
             const name = document.getElementById('new-item-name').value.trim();
             const price = parseFloat(document.getElementById('new-item-price').value);
@@ -1305,7 +1412,10 @@ Total: ₹${orderData.total}
             localStorage.setItem('customMenuItems', JSON.stringify(menuItems));
             saveInventory();
             
-            alert(`${name} added successfully! Please refresh the page to see it in the menu.`);
+            // Dynamically render the new item
+            renderNewMenuItem(name, price, category);
+            
+            alert(`${name} added successfully!`);
             closeAddNewItem();
         }
 
@@ -1323,26 +1433,72 @@ Total: ₹${orderData.total}
             modal.classList.remove('active');
         }
 
-        function updateAnalyticsDashboard(period) {
-            let orders = [];
+        function isFirebaseAnalyticsReady() {
+            return typeof firebase !== 'undefined' &&
+                firebase.apps &&
+                firebase.apps.length > 0 &&
+                typeof getOrdersFromFirebase === 'function';
+        }
+
+        async function fetchOrdersForPeriod(period) {
             let periodLabel = '';
-            
+            let startDate = null;
+            let endDate = null;
+
             if (period === 'today') {
-                orders = getTodayOrders();
+                startDate = new Date();
+                startDate.setHours(0, 0, 0, 0);
+                endDate = new Date(startDate);
+                endDate.setDate(endDate.getDate() + 1);
                 periodLabel = 'Today';
             } else if (period === 'month') {
-                orders = getMonthOrders();
+                const now = new Date();
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
                 periodLabel = 'This Month';
             } else if (period === 'year') {
-                orders = getYearOrders();
+                const now = new Date();
+                startDate = new Date(now.getFullYear(), 0, 1);
+                endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
                 periodLabel = 'This Year';
             } else if (period === 'custom') {
-                const startDate = new Date(document.getElementById('analytics-start-date').value);
-                const endDate = new Date(document.getElementById('analytics-end-date').value);
+                startDate = new Date(document.getElementById('analytics-start-date').value);
+                endDate = new Date(document.getElementById('analytics-end-date').value);
                 endDate.setHours(23, 59, 59);
-                orders = getOrdersByDateRange(startDate, endDate);
                 periodLabel = 'Custom Range';
             }
+
+            if (!startDate || !endDate || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                return { orders: [], periodLabel: periodLabel || 'Custom Range' };
+            }
+
+            let orders = [];
+            if (isFirebaseAnalyticsReady()) {
+                try {
+                    orders = await getOrdersFromFirebase(startDate, endDate);
+                } catch (error) {
+                    console.warn('Firebase analytics unavailable, using local history.', error);
+                    orders = getOrdersByDateRange(startDate, endDate);
+                }
+            } else {
+                orders = getOrdersByDateRange(startDate, endDate);
+            }
+
+            // Fallback to local history if Firebase returns no data
+            if (orders.length === 0) {
+                const localOrders = getOrdersByDateRange(startDate, endDate);
+                if (localOrders.length > 0) {
+                    orders = localOrders;
+                }
+            }
+
+            return { orders, periodLabel };
+        }
+
+        async function updateAnalyticsDashboard(period) {
+            const result = await fetchOrdersForPeriod(period);
+            const orders = result.orders;
+            const periodLabel = result.periodLabel;
             
             const periodLabelElement = document.getElementById('analytics-period-label');
             if (periodLabelElement) periodLabelElement.textContent = periodLabel;
@@ -1555,6 +1711,9 @@ Total: ₹${orderData.total}
             initializeInventory();
             applyRemovedMenuItems();
             
+            // Render all custom items that were saved (this fixes the menu not showing custom items after refresh)
+            renderAllCustomItems();
+            
             const savedIP = localStorage.getItem('esp32-ip');
             if (savedIP) {
                 document.getElementById('esp32-ip').value = savedIP;
@@ -1586,6 +1745,8 @@ Total: ₹${orderData.total}
         window.openAddNewItem = openAddNewItem;
         window.closeAddNewItem = closeAddNewItem;
         window.addNewMenuItem = addNewMenuItem;
+        window.renderNewMenuItem = renderNewMenuItem;
+        window.renderAllCustomItems = renderAllCustomItems;
         window.openStockAdjust = openStockAdjust;
         window.closeStockAdjust = closeStockAdjust;
         window.applyStockAdjustment = applyStockAdjustment;
@@ -1607,9 +1768,15 @@ Total: ₹${orderData.total}
 
         // Keyboard shortcuts
         document.addEventListener('keydown', function(event) {
+            const targetElement = event.target;
+            const isFormInput = targetElement.tagName === 'INPUT' || targetElement.tagName === 'SELECT' || targetElement.tagName === 'TEXTAREA';
+            
             if (event.key === 'c' || event.key === 'C') {
-                if (!document.getElementById('checkout-modal').classList.contains('active') &&
-                    !document.getElementById('confirmation-modal').classList.contains('active')) {
+                // Don't trigger checkout if in a form input
+                if (!isFormInput &&
+                    !document.getElementById('checkout-modal').classList.contains('active') &&
+                    !document.getElementById('confirmation-modal').classList.contains('active') &&
+                    !document.getElementById('add-item-modal').classList.contains('active')) {
                     openCheckout();
                 }
             }
@@ -1625,6 +1792,30 @@ Total: ₹${orderData.total}
         });
 
         console.log('✅ ALL FUNCTIONS LOADED - Restaurant System Ready!');
+    </script>
+
+    <!-- Firebase Config & Integration -->
+    <script src="firebase-config.js"></script>
+    
+    <script>
+        // Initialize Firebase sync when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(function() {
+                    if (typeof initFirebaseSync === 'function') {
+                        initFirebaseSync();
+                        console.log('🔥 Firebase sync initialized');
+                    }
+                }, 1000);
+            });
+        } else {
+            setTimeout(function() {
+                if (typeof initFirebaseSync === 'function') {
+                    initFirebaseSync();
+                    console.log('🔥 Firebase sync initialized');
+                }
+            }, 1000);
+        }
     </script>
 </body>
 </html>

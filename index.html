@@ -25,7 +25,6 @@
                 <div class="auth-actions">
                     <button class="btn-primary" onclick="loginUser()">Sign In</button>
                 </div>
-                <button class="btn-google" onclick="signInWithGoogle()">Continue with Google</button>
                 <p class="auth-info">💬 Need an account? Contact your restaurant admin.</p>
                 <p id="auth-message" class="auth-message"></p>
             </div>
@@ -1901,18 +1900,6 @@ Total: ₹${orderData.total}
                 });
         }
 
-        function signInWithGoogle() {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            setAuthMessage('Opening Google sign-in...');
-            firebase.auth().signInWithPopup(provider)
-                .then(function() {
-                    setAuthMessage('');
-                })
-                .catch(function(error) {
-                    setAuthMessage(error.message);
-                });
-        }
-
         function logoutUser() {
             firebase.auth().signOut().catch(function(error) {
                 console.warn('Logout failed:', error);
@@ -1949,8 +1936,6 @@ Total: ₹${orderData.total}
         window.exportAnalyticsReport = exportAnalyticsReport;
         window.clearOrderHistory = clearOrderHistory;
         window.loginUser = loginUser;
-        window.registerUser = registerUser;
-        window.signInWithGoogle = signInWithGoogle;
         window.logoutUser = logoutUser;
 
         // Initialize on page load

@@ -1832,9 +1832,14 @@ Total: ₹${orderData.total}
             // Force auth overlay to show initially
             setAuthLocked(true);
 
-            // Set persistence but don't auto-unlock from cached session
-            firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(error) {
+            // Set persistence to NONE - require login each time page loads
+            firebase.auth().setPersistence(firebase.auth.Auth.Persistence.NONE).catch(function(error) {
                 console.warn('Auth persistence error:', error);
+            }).then(function() {
+                // Sign out any existing session to force fresh login
+                firebase.auth().signOut().catch(function(error) {
+                    console.warn('Signout error:', error);
+                });
             });
 
             firebase.auth().onAuthStateChanged(function(user) {

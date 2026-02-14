@@ -1070,12 +1070,30 @@ Total: ₹${orderData.total}
         // INVENTORY DASHBOARD
         // ===================================
         function openInventoryDashboard() {
-            updateInventoryDashboard();
-            document.getElementById('inventory-modal').classList.add('active');
+            try {
+                updateInventoryDashboard();
+                const modal = document.getElementById('inventory-modal');
+                if (modal) {
+                    modal.classList.add('active');
+                    console.log('✅ Inventory modal opened');
+                } else {
+                    console.error('❌ Inventory modal element not found');
+                }
+            } catch (error) {
+                console.error('❌ Error opening inventory dashboard:', error);
+            }
         }
 
         function closeInventoryDashboard() {
-            document.getElementById('inventory-modal').classList.remove('active');
+            try {
+                const modal = document.getElementById('inventory-modal');
+                if (modal) {
+                    modal.classList.remove('active');
+                    console.log('✅ Inventory modal closed');
+                }
+            } catch (error) {
+                console.error('❌ Error closing inventory dashboard:', error);
+            }
         }
 
         function updateInventoryDashboard() {
@@ -1455,14 +1473,31 @@ Total: ₹${orderData.total}
         // ANALYTICS DASHBOARD
         // ===================================
         function openAnalyticsDashboard() {
-            var modal = document.getElementById('analytics-modal');
-            modal.classList.add('active');
-            updateAnalyticsDashboard('today');
+            try {
+                const modal = document.getElementById('analytics-modal');
+                if (modal) {
+                    modal.classList.add('active');
+                    console.log('✅ Analytics modal opened');
+                    // Load data with small delay to ensure DOM is ready
+                    setTimeout(() => updateAnalyticsDashboard('today'), 100);
+                } else {
+                    console.error('❌ Analytics modal element not found');
+                }
+            } catch (error) {
+                console.error('❌ Error opening analytics dashboard:', error);
+            }
         }
 
         function closeAnalyticsDashboard() {
-            var modal = document.getElementById('analytics-modal');
-            modal.classList.remove('active');
+            try {
+                const modal = document.getElementById('analytics-modal');
+                if (modal) {
+                    modal.classList.remove('active');
+                    console.log('✅ Analytics modal closed');
+                }
+            } catch (error) {
+                console.error('❌ Error closing analytics dashboard:', error);
+            }
         }
 
         function isFirebaseAnalyticsReady() {
@@ -1924,6 +1959,8 @@ Total: ₹${orderData.total}
         window.addNewMenuItem = addNewMenuItem;
         window.renderNewMenuItem = renderNewMenuItem;
         window.renderAllCustomItems = renderAllCustomItems;
+        window.updateStockDisplay = updateStockDisplay;
+        window.updateInventoryDashboard = updateInventoryDashboard;
         window.openStockAdjust = openStockAdjust;
         window.closeStockAdjust = closeStockAdjust;
         window.applyStockAdjustment = applyStockAdjustment;

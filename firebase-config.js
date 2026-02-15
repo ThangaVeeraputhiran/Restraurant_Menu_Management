@@ -54,7 +54,56 @@ waitForFirebase().then(() => {
     ordersRef = db.collection('restaurants').doc('main').collection('orders');
     analyticsRef = db.collection('restaurants').doc('main').collection('analytics');
     console.log('✅ Firestore references created');
+
+    attachAuthSyncRetry();
 });
+
+function attachAuthSyncRetry() {
+    if (typeof firebase === 'undefined' || !firebase.auth) return;
+
+    firebase.auth().onAuthStateChanged(function(user) {
+        if (!user) return;
+
+        const allowed = Array.isArray(window.AUTHORIZED_EMAILS)
+            ? window.AUTHORIZED_EMAILS.includes(user.email)
+            : true;
+
+        if (allowed && typeof initFirebaseSync === 'function') {
+            initFirebaseSync();
+        }
+    });
+}
+
+function buildSortedMenuItems(source) {
+    const sorted = {};
+    Object.keys(source || {})
+        .sort((a, b) => a.localeCompare(b))
+        .forEach((name) => {
+            sorted[name] = source[name];
+        });
+    return sorted;
+}
+
+function buildSortedInventory(source) {
+    const sorted = {};
+    const list = [];
+    const items = source || {};
+
+    Object.keys(items)
+        .sort((a, b) => {
+            const catA = (items[a] && items[a].category) || '';
+            const catB = (items[b] && items[b].category) || '';
+            if (catA !== catB) return catA.localeCompare(catB);
+            return a.localeCompare(b);
+        })
+        .forEach((name) => {
+            const item = items[name];
+            sorted[name] = item;
+            list.push(Object.assign({ name: name }, item));
+        });
+
+    return { sorted: sorted, list: list };
+}
 
 // ============================================
 // SYNC INVENTORY TO FIREBASE
@@ -69,11 +118,19 @@ function syncInventoryToFirebase() {
     
     const restaurantRef = db.collection('restaurants').doc('main');
     
+    const sortedMenuItems = buildSortedMenuItems(menuItems);
+    const sortedInventory = buildSortedInventory(inventory);
+    const menuList = Object.keys(sortedMenuItems).map(function(name) {
+        return { name: name, price: sortedMenuItems[name] };
+    });
+
     restaurantRef.set({
         name: 'Kitchen Alert Restaurant',
         lastUpdated: new Date().toISOString(),
-        inventory: inventory,
-        menuItems: menuItems
+        inventory: sortedInventory.sorted,
+        menuItems: sortedMenuItems,
+        inventoryList: sortedInventory.list,
+        menuList: menuList
     }, { merge: true })
     .then(() => console.log('✅ Inventory synced to Firebase'))
     .catch(error => console.error('❌ Inventory sync failed:', error));

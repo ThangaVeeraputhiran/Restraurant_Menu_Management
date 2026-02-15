@@ -2027,24 +2027,7 @@ Total: ₹${orderData.total}
             }
         }
 
-        // Initialize Firebase sync when DOM is ready (after auth)
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(function() {
-                    if (typeof initFirebaseSync === 'function') {
-                        initFirebaseSync();
-                        console.log('🔥 Firebase sync initialized');
-                    }
-                }, 500);
-            });
-        } else {
-            setTimeout(function() {
-                if (typeof initFirebaseSync === 'function') {
-                    initFirebaseSync();
-                    console.log('🔥 Firebase sync initialized');
-                }
-            }, 500);
-        }
+        // Firebase sync starts after successful auth in initAuthUI
     </script>
 </body>
 </html>

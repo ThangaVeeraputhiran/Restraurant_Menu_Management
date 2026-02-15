@@ -163,6 +163,15 @@ function saveOrderToFirebase(orderData) {
 // GET ORDERS FROM FIREBASE (WITH DATE RANGE)
 // ============================================
 
+function parseOrderTimestamp(rawTimestamp) {
+    if (!rawTimestamp) return null;
+    if (typeof rawTimestamp === 'string') return new Date(rawTimestamp);
+    if (typeof rawTimestamp === 'number') return new Date(rawTimestamp);
+    if (typeof rawTimestamp.toDate === 'function') return rawTimestamp.toDate();
+    if (typeof rawTimestamp.seconds === 'number') return new Date(rawTimestamp.seconds * 1000);
+    return new Date(rawTimestamp);
+}
+
 async function getOrdersFromFirebase(startDate, endDate) {
     if (!db) {
         console.warn('⚠️ Firebase not ready, falling back to localStorage');
@@ -172,24 +181,43 @@ async function getOrdersFromFirebase(startDate, endDate) {
     try {
         const ordersRef = db.collection('restaurants').doc('main').collection('orders');
         
-        const snapshot = await ordersRef
+        const rangeSnapshot = await ordersRef
             .where('timestamp', '>=', startDate.toISOString())
             .where('timestamp', '<=', endDate.toISOString())
             .orderBy('timestamp', 'desc')
             .get();
-        
-        const orders = [];
-        snapshot.forEach(doc => {
-            orders.push({ id: doc.id, ...doc.data() });
+
+        const rangeOrders = [];
+        rangeSnapshot.forEach(doc => {
+            rangeOrders.push({ id: doc.id, ...doc.data() });
         });
-        
-        // If no Firebase orders, check localStorage
-        if (orders.length === 0) {
-            console.log('No Firebase orders found, checking localStorage');
-            return getOrdersFromLocalStorage(startDate, endDate);
+
+        if (rangeOrders.length > 0) {
+            return rangeOrders;
         }
-        
-        return orders;
+
+        // Fallback: fetch recent orders and filter client-side for mixed timestamp formats
+        console.log('No Firebase orders found with range query, trying fallback fetch');
+        const fallbackSnapshot = await ordersRef
+            .orderBy('timestamp', 'desc')
+            .limit(500)
+            .get();
+
+        const fallbackOrders = [];
+        fallbackSnapshot.forEach(doc => {
+            const data = doc.data();
+            const parsedTime = parseOrderTimestamp(data.timestamp);
+            if (parsedTime && parsedTime >= startDate && parsedTime <= endDate) {
+                fallbackOrders.push({ id: doc.id, ...data });
+            }
+        });
+
+        if (fallbackOrders.length > 0) {
+            return fallbackOrders;
+        }
+
+        console.log('No Firebase orders found, checking localStorage');
+        return getOrdersFromLocalStorage(startDate, endDate);
     } catch (error) {
         console.warn('Firebase error:', error, '- falling back to localStorage');
         return getOrdersFromLocalStorage(startDate, endDate);
@@ -201,7 +229,8 @@ function getOrdersFromLocalStorage(startDate, endDate) {
     try {
         const orderHistory = JSON.parse(localStorage.getItem('orderHistory') || '[]');
         const filtered = orderHistory.filter(order => {
-            const orderDate = new Date(order.timestamp);
+            const orderDate = parseOrderTimestamp(order.timestamp);
+            if (!orderDate || isNaN(orderDate.getTime())) return false;
             return orderDate >= startDate && orderDate <= endDate;
         });
         return filtered.reverse(); // Most recent first
